@@ -1,0 +1,16 @@
+
+```{r}
+install.packages("readxl")  # Run this only if you haven't installed it
+```
+
+
+
+```{r}
+library(readxl)
+data <- read_excel("data_academic_performance.xlsx")
+```
+
+```{r}
+
+```
+
