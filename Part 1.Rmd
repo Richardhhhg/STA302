@@ -86,9 +86,79 @@ df_numerical_temp <- select(df_numeric, -c(MAT_S11, CR_S11, CC_S11, BIO_S11, ENG
 plot(df_numerical_temp, pch = 19, cex = 0.10)
 ```
 
+```{r}
+# making aggregate average for S11 exams
+df_numeric$COD_S11 <- rowMeans(select(df_numeric, c(MAT_S11, CR_S11, CC_S11, BIO_S11, ENG_S11)), na.rm = TRUE)
+plot(df_numeric$COD_S11, df_numeric$G_SC, pch = 19, cex = 0.5)
+```
+
 ### Visualizing Categorical Data
 ```{r}
 continuous_cols <- colnames(df_numeric)
-df_categorical <- select(df, -c(continuous_cols))
+df_categorical <- select(df, -c(continuous_cols, Cod_SPro, COD_S11, UNIVERSITY, SCHOOL_NAME))
+head(df_categorical)
 ```
 
+
+```{r}
+lapply(names(df_categorical), function(col) {
+  ggplot(df_categorical, aes(x = .data[[col]])) +
+    geom_bar() +
+    labs(title = paste("Distribution of ", col)) + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+})
+```
+
+### Regression model
+```{r}
+# selecting only chosen variables
+df$AVG_S11 <- rowMeans(select(df, c(MAT_S11, CR_S11, CC_S11, BIO_S11, ENG_S11)), na.rm = TRUE)
+features <- c("AVG_S11", "SEL", "GENDER", "SCHOOL_NAT", "SEL_IHE")
+target <- "G_SC"
+df_model <- df %>% select(all_of(features), all_of(target))
+```
+
+
+```{r}
+head(df_model)
+```
+
+
+```{r}
+lr <- lm(G_SC ~ ., data = df_model)
+summary(lr)
+```
+
+### Residual Plots
+```{r}
+plot(lr, which = 1)
+```
+
+
+```{r}
+# residual plots against each variable
+lapply(features, function(feature) {
+  ggplot(df_model, aes(x = .data[[feature]], y = lr$residuals)) +
+    geom_point() + geom_hline(yintercept = 0, color = "darkblue") +
+    labs(title = paste("Residuals vs ", feature)) + xlab(feature) + ylab("Residuals")
+})
+```
+
+
+```{r}
+# qqplot
+qqnorm(lr$residuals)
+```
+```{r}
+# Standardized Residuals
+std_residual <- rstandard(lr)
+hist(std_residual, breaks = 50, xlab="Standardized Residual", main="Histogram of Standardized Residuals")
+```
+
+
+```{r}
+# response vs fitted values
+ggplot(df_model, aes(x = lr$fitted.values, y = df$G_SC)) +
+  geom_point() + geom_hline(yintercept = 0, color = "darkblue") +
+  labs(title = "Residuals vs Fitted Values") + geom_abline(intercept = 0, slope = 1, color="blue") +
+  xlab("Fitted Values") + ylab("Global Score")
+```
