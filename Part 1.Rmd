@@ -1,16 +1,94 @@
 
-```{r}
-install.packages("readxl")  # Run this only if you haven't installed it
+# Phase 1!
+## Loading Files and Data Cleaning
+```{r message=FALSE, warning=FALSE, results='hide'}
+# required packages
+install.packages("readxl")
+install.packages("dplyr")
+install.packages("ggplot2")
+install.packages("tidyverse")
+install.packages("corrplot")
 ```
 
 
-
 ```{r}
+# converting xlsx to csv, only needs to be run once
 library(readxl)
+library(dplyr)
 data <- read_excel("data_academic_performance.xlsx")
+write.csv(data, "data.csv") # cuz xlsx is not epic
+df <- read.csv("data.csv")
+
+df <- df %>% select(-X)
 ```
 
 ```{r}
+head(df)
+```
 
+## Data Cleaning
+TODO: DO THIS THING
+```{r}
+
+```
+
+```{r}
+```
+
+## Data Visualization
+### Summary Statistics
+```{r}
+library(ggplot2)
+library(tidyr)
+library(corrplot)
+```
+
+```{r}
+summary(df)
+```
+
+### Visualizations for Numeric Data
+```{r}
+# filtering for continuous variables
+df_numeric <- df %>% 
+  select(where(is.numeric)) %>%
+  select(where(~ length(unique(.)) > 5))
+head(df_numeric)
+```
+
+
+```{r}
+lapply(names(df_numeric), function(col) {
+  ggplot(df_numeric, aes(x = .data[[col]])) +
+    geom_histogram(bins = 50) +
+    labs(title = paste("Distribution of ", col))
+})
+```
+
+
+```{r}
+# correlation matrix
+cor_matrix <- cor(df_numeric, use = "complete.obs")
+corrplot(cor_matrix, method = "circle")
+```
+
+
+```{r}
+# Relationship between G_SC and S11 tests
+df_numerical_temp <- select(df_numeric, -c(QR_PRO, CR_PRO, CC_PRO, ENG_PRO, WC_PRO, FEP_PRO, PERCENTILE))
+plot(df_numerical_temp, pch = 19, cex = 0.10)
+```
+
+
+```{r}
+# Relationship between G_SC and PRO tests
+df_numerical_temp <- select(df_numeric, -c(MAT_S11, CR_S11, CC_S11, BIO_S11, ENG_S11, PERCENTILE))
+plot(df_numerical_temp, pch = 19, cex = 0.10)
+```
+
+### Visualizing Categorical Data
+```{r}
+continuous_cols <- colnames(df_numeric)
+df_categorical <- select(df, -c(continuous_cols))
 ```
 
