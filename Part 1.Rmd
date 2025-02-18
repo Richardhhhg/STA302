@@ -35,26 +35,14 @@ df_clean <- df %>%
   mutate("AVG_S11" = (MAT_S11 + CR_S11 + CC_S11 + BIO_S11 + ENG_S11) / 5) %>%
   select(G_SC, AVG_S11, GENDER, SCHOOL_NAT, SEL, SEL_IHE)
 
+df_clean_factor <- df_clean %>%
+  mutate(
+    GENDER = as.factor(GENDER),
+    SCHOOL_NAT = as.factor(SCHOOL_NAT),
+    SEL = as.factor(SEL),
+    SEL_IHE = as.factor(SEL_IHE)
+  )
 ```
-
-```{r}
-# IM EXPERIMENTING HERE DON'T JUDGE
-
-library(ggplot2)
-library(GGally)
-
-# Convert categorical variables to factors
-#df_clean$GENDER <- as.factor(df$GENDER)
-#df_clean$SCHOOL_NAT <- as.factor(df$SCHOOL_NAT)
-
-ggpairs(df_clean, 
-        aes(color = GENDER),  
-        lower = list(continuous = wrap("points", alpha = 0.5)),  # Scatterplot for numeric vs numeric
-        upper = list(continuous = wrap("points", alpha = 0.5)),  # Scatterplot in upper triangle too
-        diag = list(continuous = wrap("densityDiag")),           # Density plots for numeric vars
-        combo = list(continuous = wrap("box_no_facet")))         # Boxplot for categorical vs numeric
-```
-
 
 ## Data Visualization
 
@@ -126,6 +114,76 @@ lapply(names(df_categorical), function(col) {
     geom_bar() +
     labs(title = paste("Distribution of ", col)) + theme(axis.text.x = element_text(angle = 45, hjust = 1))
 })
+```
+
+
+### Visualizing Predictors against Response
+
+```{r}
+library(gridExtra)
+
+# function to generate the grid of plots
+plot_matrix <- function(df) {
+  vars <- names(df)
+  n <- length(vars)
+  
+  plot_list <- lapply(1:n, function(i) {
+    lapply(1:n, function(j) {
+      
+      # Diagonal: Variable name as text
+      if (i == j) {
+        label_text <- vars[i]
+        p <- ggplot() + 
+          geom_text(aes(x = 0.5, y = 0.5, label = label_text), size = 4) + 
+          theme_void()
+        
+      } else {
+        # base plot
+        p <- ggplot(df, aes_string(x = vars[j], y = vars[i])) +
+          theme_minimal(base_size = 10) +   # Use smaller font size to fit plots
+          theme(
+            # removing all labels and titles for now
+            axis.text.x = element_blank(),
+            axis.text.y = element_blank(),  
+            axis.title.x = element_blank(), 
+            axis.title.y = element_blank(), 
+            plot.margin = margin(5, 5, 5, 5)
+          )
+        
+        # Numeric vs. Numeric → Scatterplot
+        if (is.numeric(df[[vars[j]]]) && is.numeric(df[[vars[i]]])) {
+          p <- p + geom_point()
+          
+        # Categorical vs. Categorical → Count
+        } else if (is.factor(df[[vars[j]]]) && is.factor(df[[vars[i]]])) {
+          p <- p + geom_count(show.legend = FALSE)
+          
+        # Categorical vs. Numeric → Boxplot
+        } else {
+          p <- p + geom_boxplot()
+        }
+          
+        # Show x-axis tick labels only for bottom row
+        if (i == n && i != j) {
+          p <- p + theme(axis.text.x = element_text(size = 8))
+        }
+
+        # Show y-axis tick labels only for leftmost column
+        if (j == 1 && i != j) {
+          p <- p + theme(axis.text.y = element_text(size = 8))
+        }
+      }
+      
+      return(p)
+    })
+  })
+  
+  plot_list <- unlist(plot_list, recursive = FALSE)
+  grid.arrange(grobs = plot_list, ncol = n)
+}
+
+plot_matrix(df_clean_factor)
+
 ```
 
 ### Regression model
