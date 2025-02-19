@@ -68,6 +68,24 @@ summary(df_clean)
 ### Visualizations for Numeric Data
 
 ```{r}
+# pretty histogram for response
+
+ggplot(df_clean, aes(x = G_SC)) + 
+  geom_histogram() +
+  geom_vline(aes(xintercept = mean(G_SC, na.rm = TRUE)), 
+             color = "red", 
+             linetype = "dashed", 
+             size = 1) +
+  labs(x = "Global Score (G_SC)",
+       y = "Frequency",
+       title = "Distribution of Global Score") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+
+```{r}
 lapply(names(df_numeric), function(col) {
   ggplot(df_numeric, aes(x = .data[[col]])) +
     geom_histogram(bins = 50) +
