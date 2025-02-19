@@ -9,6 +9,7 @@ install.packages("dplyr")
 install.packages("ggplot2")
 install.packages("tidyverse")
 install.packages("corrplot")
+install.packages("gridExtra")
 ```
 
 ```{r}
@@ -27,21 +28,27 @@ head(df)
 ```
 
 ## Data Cleaning
+```{r}
+colnames(df)
+```
 
-TODO: DO THIS THING
 
 ```{r}
 df_clean <- df %>% 
   mutate("AVG_S11" = (MAT_S11 + CR_S11 + CC_S11 + BIO_S11 + ENG_S11) / 5) %>%
-  select(G_SC, AVG_S11, GENDER, SCHOOL_NAT, SEL, SEL_IHE)
+  # select(G_SC, AVG_S11, GENDER, SCHOOL_NAT, SEL, SEL_IHE) 
+  select(-c(Cod_SPro, COD_S11, UNIVERSITY, SCHOOL_NAME, ...10))
+# dropping ID columns for SPro and S11, University and School Name to many unique values
 
-df_clean_factor <- df_clean %>%
-  mutate(
-    GENDER = as.factor(GENDER),
-    SCHOOL_NAT = as.factor(SCHOOL_NAT),
-    SEL = as.factor(SEL),
-    SEL_IHE = as.factor(SEL_IHE)
-  )
+continuous_cols <- c("MAT_S11", "CR_S11", "CC_S11", "BIO_S11", "ENG_S11", "G_SC", "AVG_S11",
+                     "QR_PRO", "CR_PRO", "CC_PRO", "ENG_PRO", "WC_PRO", "FEP_PRO", "PERCENTILE",
+                     "G_SC")
+
+df_clean <- df_clean %>%
+  mutate(across(!all_of(continuous_cols), as.factor))
+
+df_numeric <- df_clean %>% select(continuous_cols)
+df_categorical <- df_clean %>% select(-c(continuous_cols))
 ```
 
 ## Data Visualization
@@ -55,18 +62,10 @@ library(corrplot)
 ```
 
 ```{r}
-summary(df)
+summary(df_clean)
 ```
 
 ### Visualizations for Numeric Data
-
-```{r}
-# filtering for continuous variables
-df_numeric <- df %>% 
-  select(where(is.numeric)) %>%
-  select(where(~ length(unique(.)) > 5))
-head(df_numeric)
-```
 
 ```{r}
 lapply(names(df_numeric), function(col) {
@@ -90,21 +89,13 @@ plot(df_numerical_temp, pch = 19, cex = 0.10)
 
 ```{r}
 # Relationship between G_SC and PRO tests
-df_numerical_temp <- select(df_numeric, -c(MAT_S11, CR_S11, CC_S11, BIO_S11, ENG_S11, PERCENTILE))
+df_numerical_temp <- select(df_numeric, -c(MAT_S11, CR_S11, CC_S11, BIO_S11, ENG_S11, AVG_S11, PERCENTILE))
 plot(df_numerical_temp, pch = 19, cex = 0.10)
-```
-
-```{r}
-# making aggregate average for S11 exams
-df_numeric$COD_S11 <- rowMeans(select(df_numeric, c(MAT_S11, CR_S11, CC_S11, BIO_S11, ENG_S11)), na.rm = TRUE)
-plot(df_numeric$COD_S11, df_numeric$G_SC, pch = 19, cex = 0.5)
 ```
 
 ### Visualizing Categorical Data
 
 ```{r}
-continuous_cols <- colnames(df_numeric)
-df_categorical <- select(df, -c(continuous_cols, Cod_SPro, COD_S11, UNIVERSITY, SCHOOL_NAME))
 head(df_categorical)
 ```
 
@@ -118,6 +109,16 @@ lapply(names(df_categorical), function(col) {
 
 
 ### Visualizing Predictors against Response
+```{r}
+# selecting only chosen variables
+features <- c("AVG_S11", "GENDER", "SCHOOL_NAT", "SEL", "SEL_IHE")
+target <- "G_SC"
+df_model <- df_clean %>% select(all_of(target), all_of(features))
+```
+
+```{r}
+summary(df_model)
+```
 
 ```{r}
 library(gridExtra)
@@ -182,19 +183,11 @@ plot_matrix <- function(df) {
   grid.arrange(grobs = plot_list, ncol = n)
 }
 
-plot_matrix(df_clean_factor)
+plot_matrix(df_model)
 
 ```
 
 ### Regression model
-
-```{r}
-# selecting only chosen variables
-df$AVG_S11 <- rowMeans(select(df, c(MAT_S11, CR_S11, CC_S11, BIO_S11, ENG_S11)), na.rm = TRUE)
-features <- c("AVG_S11", "SEL", "GENDER", "SCHOOL_NAT", "SEL_IHE")
-target <- "G_SC"
-df_model <- df %>% select(all_of(features), all_of(target))
-```
 
 ```{r}
 head(df_model)
@@ -208,16 +201,35 @@ summary(lr)
 ### Residual Plots
 
 ```{r}
-plot(lr, which = 1)
+df_residual <- data.frame(fitted = fitted(lr), residuals = residuals(lr))
+ggplot(df_residual, aes(x=fitted, y=residuals)) + geom_point(shape=1) + 
+  geom_hline(yintercept = 0, color = "black") + labs(title = "Residuals vs Fitted Values") +
+  xlab("Fitted Values") + ylab("Residuals")
 ```
 
 ```{r}
 # residual plots against each variable
-lapply(features, function(feature) {
-  ggplot(df_model, aes(x = .data[[feature]], y = lr$residuals)) +
-    geom_point() + geom_hline(yintercept = 0, color = "darkblue") +
-    labs(title = paste("Residuals vs ", feature)) + xlab(feature) + ylab("Residuals")
+plots <- lapply(features, function(feature) {
+  n <- length(features)
+  
+  if (is.numeric(df_model[[feature]])) {
+    p <- ggplot(df_model, aes(x = .data[[feature]], y = lr$residuals)) +
+      geom_point() + geom_hline(yintercept = 0, color = "darkblue") +
+      labs(title = paste("Residuals vs", feature)) + 
+      xlab(feature) + ylab("Residuals") +
+      theme(plot.title = element_text(size = 10, margin = margin(b = 10)),
+            plot.margin = margin(10, 10, 10, 10))
+  } else {
+    p <- ggplot(df_model, aes_string(x = feature, y = lr$residuals)) +
+      geom_boxplot() + labs(title = paste("Residuals vs", feature)) + 
+      xlab(feature) + ylab("Residuals") +
+      theme(plot.title = element_text(size = 10, margin = margin(b = 10)),
+            plot.margin = margin(10, 10, 10, 10))
+  }
 })
+
+grid_plot <- do.call(grid.arrange, c(plots, ncol = n_cols))
+
 ```
 
 ```{r}
