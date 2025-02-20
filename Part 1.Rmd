@@ -59,6 +59,7 @@ df_categorical <- df_clean %>% select(-c(continuous_cols))
 library(ggplot2)
 library(tidyr)
 library(corrplot)
+library(gridExtra)
 ```
 
 ```{r}
@@ -139,9 +140,93 @@ summary(df_model)
 ```
 
 ```{r}
-library(gridExtra)
+# this is the version that includes self plots
 
-# function to generate the grid of plots
+plot_matrix_self <- function(df) {
+  vars <- c("", names(df))
+  n <- length(vars)
+  
+  plot_list <- lapply(1:n, function(i) {
+    lapply(1:n, function(j) {
+      
+      # base cases
+      if (i == 1 && j == 1){  # top left is empty
+        p <- ggplot() + theme_void()
+      } else if (i == 1 | j == 1){  # name of the var
+        label_text <- ifelse(i == 1, vars[j], vars[i])
+        p <- ggplot() + 
+          geom_text(aes(x = 0.5, y = 0.5, label = label_text), size = 3) + 
+          theme_void()
+      # diagonal plots
+      } else if (i == j) {
+        p <- ggplot(df, aes_string(x = vars[i])) +
+          theme_minimal(base_size = 10) +
+          theme(
+            axis.text.x = element_blank(),
+            axis.text.y = element_blank(),  
+            axis.title.x = element_blank(), 
+            axis.title.y = element_blank(), 
+            plot.margin = margin(5, 5, 5, 5)
+          )
+        p <- p + if (is.numeric(df[[vars[i]]])) geom_histogram(bins = 30) else geom_bar()
+        
+        if (i == n){
+          p <- p + theme(axis.text.x = element_text(size = 8))
+        }
+      } else {
+        # base plot
+        p <- ggplot(df, aes_string(x = vars[j], y = vars[i])) +
+          theme_minimal(base_size = 10) +   # Use smaller font size to fit plots
+          theme(
+            # removing all labels and titles for now
+            axis.text.x = element_blank(),
+            axis.text.y = element_blank(),  
+            axis.title.x = element_blank(), 
+            axis.title.y = element_blank(), 
+            plot.margin = margin(5, 5, 5, 5)
+          )
+        
+        # Numeric vs. Numeric → Scatterplot
+        if (is.numeric(df[[vars[j]]]) && is.numeric(df[[vars[i]]])) {
+          p <- p + geom_point(alpha = 0.5)
+          
+        # Categorical vs. Categorical → Count
+        } else if (is.factor(df[[vars[j]]]) && is.factor(df[[vars[i]]])) {
+          p <- p + geom_count(show.legend = FALSE, position = position_dodge(width = 0.3))
+          
+        # Categorical vs. Numeric → Boxplot
+        } else {
+          p <- p + geom_boxplot()
+        }
+          
+        # Show x-axis tick labels only for bottom row
+        if (i == n && i != j) {
+          p <- p + theme(axis.text.x = element_text(size = 8))
+        }
+
+        # Show y-axis tick labels only for leftmost column
+        if (j == 2 && i != j) {
+          p <- p + theme(axis.text.y = element_text(size = 8))
+        }
+      }
+      
+      return(p)
+    })
+  })
+  
+  plot_list <- unlist(plot_list, recursive = FALSE)
+  grid.arrange(grobs = plot_list, ncol = n)
+}
+
+plot_matrix_self(df_model)
+
+```
+
+
+
+```{r}
+# this version does NOT include self plots
+
 plot_matrix <- function(df) {
   vars <- names(df)
   n <- length(vars)
