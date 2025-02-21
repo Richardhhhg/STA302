@@ -331,7 +331,7 @@ plots <- lapply(features, function(feature) {
   }
 })
 
-grid_plot <- do.call(grid.arrange, c(plots, ncol = n_cols))
+grid_plot <- do.call(grid.arrange, c(plots, ncol = 2))
 
 ```
 
@@ -350,6 +350,6 @@ hist(std_residual, breaks = 50, xlab="Standardized Residual", main="Histogram of
 # response vs fitted values
 ggplot(df_model, aes(x = lr$fitted.values, y = df$G_SC)) +
   geom_point() + geom_hline(yintercept = 0, color = "darkblue") +
-  labs(title = "Residuals vs Fitted Values") + geom_abline(intercept = 0, slope = 1, color="blue") +
+  labs(title = "Residuals vs Fitted Values") + geom_abline(intercept = 0, slope = 1, color="red") +
   xlab("Fitted Values") + ylab("Global Score")
 ```
