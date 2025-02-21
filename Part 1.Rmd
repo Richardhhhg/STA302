@@ -306,7 +306,7 @@ summary(lr)
 ```{r}
 df_residual <- data.frame(fitted = fitted(lr), residuals = residuals(lr))
 ggplot(df_residual, aes(x=fitted, y=residuals)) + geom_point(shape=1) + 
-  geom_hline(yintercept = 0, color = "black") + labs(title = "Residuals vs Fitted Values") +
+  geom_hline(yintercept = 0, color = "red") + labs(title = "Residuals vs Fitted Values") +
   xlab("Fitted Values") + ylab("Residuals")
 ```
 
@@ -317,7 +317,7 @@ plots <- lapply(features, function(feature) {
   
   if (is.numeric(df_model[[feature]])) {
     p <- ggplot(df_model, aes(x = .data[[feature]], y = lr$residuals)) +
-      geom_point() + geom_hline(yintercept = 0, color = "darkblue") +
+      geom_point() + geom_hline(yintercept = 0, color = "red") +
       labs(title = paste("Residuals vs", feature)) + 
       xlab(feature) + ylab("Residuals") +
       theme(plot.title = element_text(size = 10, margin = margin(b = 10)),
