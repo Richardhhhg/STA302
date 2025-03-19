@@ -1,0 +1,78 @@
+---
+title: "Analysis"
+output: pdf_document
+---
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(corrplot)
+library(gridExtra)
+```
+
+
+## Data Cleaning and Stuff
+```{r}
+df <- read.csv("data/data.csv")
+head(df)
+```
+
+
+```{r}
+df <- df %>% 
+  mutate("AVG_S11" = (MAT_S11 + CR_S11 + CC_S11 + BIO_S11 + ENG_S11) / 5)
+
+continuous_cols <- c("MAT_S11", "CR_S11", "CC_S11", "BIO_S11", "ENG_S11", "G_SC", "AVG_S11",
+                     "QR_PRO", "CR_PRO", "CC_PRO", "ENG_PRO", "WC_PRO", "FEP_PRO", "PERCENTILE",
+                     "G_SC")
+
+df <- df%>%
+  mutate(across(!all_of(continuous_cols), as.factor))
+
+df_numeric <- df %>% select(all_of(continuous_cols))
+df_categorical <- df %>% select(-c(continuous_cols))
+```
+
+
+```{r}
+# distributions of each variable
+plots <- lapply(names(df_numeric), function(feature) {
+  ggplot(df_numeric, aes_string(x = feature)) + geom_histogram(bins = 30) + labs(title = paste("Distribution of ", feature)) +
+    theme_minimal() + theme(plot.title = element_text(size = 8)) + theme(axis.title.x = element_text(size=8))
+})
+
+grid.arrange(grobs = plots, ncol = 4)
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
