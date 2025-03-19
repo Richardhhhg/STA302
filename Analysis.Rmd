@@ -12,7 +12,7 @@ library(gridExtra)
 ```
 
 
-## Data Cleaning and Stuff
+## Data Preprocessing
 ```{r}
 df <- read.csv("data/data.csv")
 head(df)
@@ -30,11 +30,62 @@ continuous_cols <- c("MAT_S11", "CR_S11", "CC_S11", "BIO_S11", "ENG_S11", "G_SC"
 df <- df%>%
   mutate(across(!all_of(continuous_cols), as.factor))
 
+print("Missing Observations in Each Column")
+colSums(is.na(df))
+```
+
+```{r}
+# removing id and other variables
+df <- df %>% select(-c(...10, X, COD_S11, Cod_SPro))
+```
+
+```{r}
 df_numeric <- df %>% select(all_of(continuous_cols))
 df_categorical <- df %>% select(-c(continuous_cols))
 ```
 
+```{r}
+summary(df_numeric)
+```
 
+```{r}
+summary(df_categorical)
+```
+```{r}
+lapply(df_categorical, function(x) head(unique(x), 15))
+```
+
+```{r}
+# number of distinct observations in each column for categorical
+df_categorical %>% summarise_all(~ n_distinct(.))
+```
+* NOTE (TO BE REMOVED LATER): Should probably do multiple analyses, with some having the varaibles that have lots of observations (20+) as fixed effects rather than variables we care for
+
+```{r}
+# missing values were encoded as 0's
+df_categorical %>%
+  summarise_all(~ sum(. == 0))
+```
+
+```{r}
+# since not too many missing values, can just drop them
+df <- df %>%
+  filter(EDU_FATHER != 0, EDU_MOTHER != 0, OCC_FATHER != 0, OCC_MOTHER != 0, 
+         STRATUM != 0, SISBEN != 0, REVENUE != 0, JOB != 0)
+```
+
+```{r}
+# 2 encodings for 1 person in house (One and Once)
+df$PEOPLE_HOUSE[df$PEOPLE_HOUSE=="Once"] <- "One"
+```
+
+```{r}
+# selecting again but with the cleaned data
+df_numeric <- df %>% select(all_of(continuous_cols))
+df_categorical <- df %>% select(-c(continuous_cols))
+```
+
+## Visualizations of Numerical Variables
 ```{r}
 # distributions of each variable
 plots <- lapply(names(df_numeric), function(feature) {
@@ -45,23 +96,142 @@ plots <- lapply(names(df_numeric), function(feature) {
 grid.arrange(grobs = plots, ncol = 4)
 ```
 
-
+## Categorical Feature Things
 ```{r}
+##TODO: MAKE THIS CODE PRETTIER CUZ HOLY FRICK THIS IS SO UGLY
+
+# investigating the values for ordinal data
+# levels(factor(df_categorical$EDU_FATHER))
+# levels(factor(df_categorical$EDU_MOTHER))
+# levels(factor(df_categorical$PEOPLE_HOUSE))
+# levels(factor(df_categorical$REVENUE))
+# levels(factor(df_categorical$STRATUM))
+# levels(factor(df_categorical$SISBEN))
+# levels(factor(df_categorical$SEL))
+# levels(factor(df_categorical$SEL_IHE))
+# levels(factor(df_categorical$MIC_OVEN))
 ```
 
-
 ```{r}
+# Label Encoding Categorical Variables as numbers
+
+# For ordinal Categories (EDU_FATHER, EDU_MOTHER, PEOPLE_HOUSE, REVENUE, STRATUM, SISBEN)
+# SEL and SEL_IHE are already encoded as ordinal
+ordinal_features <- list(
+  EDU_FATHER = c("Not sure", "Ninguno", "Incomplete primary", "Complete primary", 
+                 "Incomplete Secundary", "Complete Secundary", 
+                 "Incomplete Professional Education", "Complete professional education",
+                 "Incomplete technical or technological", "Complete technique or technology",
+                 "Postgraduate education"),
+  EDU_MOTHER = c("Not sure", "Ninguno", "Incomplete primary", "Complete primary", 
+                 "Incomplete Secundary", "Complete Secundary", 
+                 "Incomplete Professional Education", "Complete professional education",
+                 "Incomplete technical or technological", "Complete technique or technology",
+                 "Postgraduate education"),
+  PEOPLE_HOUSE = c("One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nueve",
+                   "Ten", "Once", "Twelve or more"),
+  REVENUE = c("less than 1 LMMW", "Between 1 and less than 2 LMMW",
+              "Between 2 and less than 3 LMMW", "Between 3 and less than 5 LMMW", 
+              "Between 5 and less than 7 LMMW", "Between 7 and less than 10 LMMW",
+              "10 or more LMMW"),
+  STRATUM = c("Stratum 1", "Stratum 2", "Stratum 3", "Stratum 4", "Stratum 5", "Stratum 6"),
+  SISBEN = c("It is not classified by the SISBEN", "Level 1", "Level 2", "Level 3",
+             "Esta clasificada en otro Level del SISBEN"),
+  JOB = c("No", "Yes, 20 hours or more per week", "Yes, less than 20 hours per week")
+)
+
+df_cat_encoded <- data.frame(df_categorical)
+df_cat_encoded[names(ordinal_features)] <- lapply(names(ordinal_features), function(feature){
+  df_cat_encoded[[feature]] <- as.integer(factor(df_categorical[[feature]], levels = ordinal_features[[feature]], ordered = TRUE))
+})
 ```
 
-
 ```{r}
+# Encoding All the Yes No Variables
+# Yes no variables have inconsistent encoding in original dataset (ie some have Yes = 1 No = 0, others have No = 1, Yes = 0)
+yes_no_encoding <- c("No", "Yes") # encodes all no's as 0 and yes as 1
+yes_no_features <- c("INTERNET", "TV", "COMPUTER", "WASHING_MCH", "MIC_OVEN", 
+                        "CAR", "FRESH", "PHONE", "MOBILE", "DVD")
+df_cat_encoded[yes_no_features] <- lapply(yes_no_features, function(feature){
+  df_cat_encoded[[feature]] <- as.integer(factor(df_categorical[[feature]], levels = yes_no_encoding)) - 1
+})
 ```
 
-
 ```{r}
+# gender encoding unique for interpretation, make it yes no for male
+df_cat_encoded$GENDER <- as.integer(factor(df_categorical$GENDER)) - 1
+names(df_cat_encoded)[names(df_cat_encoded) == "GENDER"] <- "GENDER_MALE"
 ```
 
 ```{r}
+# encoding everything else
+remaining_features <- c("SCHOOL_NAME", "SCHOOL_NAT", "SCHOOL_TYPE", "UNIVERSITY",
+                        "ACADEMIC_PROGRAM", "SEL", "SEL_IHE", "X2ND_DECILE", "QUARTILE",
+                        "OCC_FATHER", "OCC_MOTHER")
+
+df_cat_encoded[remaining_features] <- lapply(remaining_features, function(feature){
+  df_cat_encoded[[feature]] <- as.integer(factor(df_categorical[[feature]]))
+})
+```
+
+```{r}
+# TODO: MAKE THIS CODE A LOT MORE ELEGENT CUZ THIS IS SUPER UGLY
+# View Encodings for everything else
+levels(factor(df_categorical$GENDER))
+# levels(factor(df_categorical$SCHOOL_NAME))
+levels(factor(df_categorical$SCHOOL_NAT))
+levels(factor(df_categorical$SCHOOL_TYPE))
+# levels(factor(df_categorical$UNIVERSITY))
+# levels(factor(df_categorical$ACADEMIC_PROGRAM))
+levels(factor(df_categorical$SEL))
+levels(factor(df_categorical$SEL_IHE))
+# levels(factor(df_categorical$OCC_FATHER))
+# levels(factor(df_categorical$OCC_MOTHER))
+```
+
+```{r}
+head(df_cat_encoded)
+```
+```{r}
+# TODO: FIX THE X TICKS IN THESE GRAPHS, IT'S SO UGLY
+# visualizing categorical features with less than 12 unique observations per category
+categorical_features <- names(df_cat_encoded)
+df_cat_lt_12 <- df_cat_encoded[sapply(df_cat_encoded[categorical_features], function(x) length(unique(x)) < 12)]
+
+plots <- lapply(names(df_cat_lt_12)[0:16], function(feature) {
+  ggplot(df_cat_encoded, aes_string(x = feature)) + geom_histogram(stat="count") + labs(title = paste("Distribution of ", feature)) +
+    theme_minimal() + theme(plot.title = element_text(size = 8)) + theme(axis.title.x = element_text(size=8))
+})
+
+grid.arrange(grobs = plots, ncol = 4)
+
+plots <- lapply(names(df_cat_lt_12)[16:length(names(df_cat_lt_12))], function(feature) {
+  ggplot(df_cat_encoded, aes_string(x = feature)) + geom_histogram(stat="count") + labs(title = paste("Distribution of ", feature)) +
+    theme_minimal() + theme(plot.title = element_text(size = 8)) + theme(axis.title.x = element_text(size=8))
+})
+
+grid.arrange(grobs = plots, ncol = 4)
+```
+
+```{r}
+# TODO: FIX ENCODINGS FOR THIS GARBAGE
+# Plots for All Remaining Categorical Features
+df_cat_gt_12 <- df_cat_encoded[sapply(df_cat_encoded[categorical_features], function(x) length(unique(x)) >= 12)]
+
+for (feature in names(df_cat_gt_12)) {
+  print(
+    ggplot(df_cat_encoded, aes_string(x = feature)) + geom_histogram(stat="count") + 
+    labs(title = paste("Distribution of ", feature)) + theme_minimal() + 
+    theme(plot.title = element_text(size = 8)) + theme(axis.title.x = element_text(size=8))
+  )
+}
+
+# grid.arrange(grobs = plots, ncol = 4)
+```
+
+# Exploratory Data Analysis
+```{r}
+
 ```
 
 
