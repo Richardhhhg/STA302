@@ -46,6 +46,7 @@ continuous_cols <- c("MAT_S11", "CR_S11", "CC_S11", "BIO_S11", "ENG_S11", "G_SC"
 
 df_clean <- df_clean %>%
   mutate(across(!all_of(continuous_cols), as.factor))
+write.csv(df_clean, "data_clean.csv")
 
 df_numeric <- df_clean %>% select(continuous_cols)
 df_categorical <- df_clean %>% select(-c(continuous_cols))
