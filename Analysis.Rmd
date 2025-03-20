@@ -142,7 +142,7 @@ ordinal_features <- list(
 
 df_cat_encoded <- data.frame(df_categorical)
 df_cat_encoded[names(ordinal_features)] <- lapply(names(ordinal_features), function(feature){
-  df_cat_encoded[[feature]] <- as.integer(factor(df_categorical[[feature]], levels = ordinal_features[[feature]], ordered = TRUE))
+  df_cat_encoded[[feature]] <- as.factor(as.integer(factor(df_categorical[[feature]], levels = ordinal_features[[feature]], ordered = TRUE)))
 })
 ```
 
@@ -153,13 +153,13 @@ yes_no_encoding <- c("No", "Yes") # encodes all no's as 0 and yes as 1
 yes_no_features <- c("INTERNET", "TV", "COMPUTER", "WASHING_MCH", "MIC_OVEN", 
                         "CAR", "FRESH", "PHONE", "MOBILE", "DVD")
 df_cat_encoded[yes_no_features] <- lapply(yes_no_features, function(feature){
-  df_cat_encoded[[feature]] <- as.integer(factor(df_categorical[[feature]], levels = yes_no_encoding)) - 1
+  df_cat_encoded[[feature]] <- as.factor(as.integer(factor(df_categorical[[feature]], levels = yes_no_encoding)) - 1)
 })
 ```
 
 ```{r}
 # gender encoding unique for interpretation, make it yes no for male
-df_cat_encoded$GENDER <- as.integer(factor(df_categorical$GENDER)) - 1
+df_cat_encoded$GENDER <- as.factor(as.integer(factor(df_categorical$GENDER)) - 1)
 names(df_cat_encoded)[names(df_cat_encoded) == "GENDER"] <- "GENDER_MALE"
 ```
 
@@ -170,7 +170,7 @@ remaining_features <- c("SCHOOL_NAME", "SCHOOL_NAT", "SCHOOL_TYPE", "UNIVERSITY"
                         "OCC_FATHER", "OCC_MOTHER")
 
 df_cat_encoded[remaining_features] <- lapply(remaining_features, function(feature){
-  df_cat_encoded[[feature]] <- as.integer(factor(df_categorical[[feature]]))
+  df_cat_encoded[[feature]] <- as.factor(as.integer(factor(df_categorical[[feature]])))
 })
 ```
 
@@ -193,7 +193,6 @@ levels(factor(df_categorical$SEL_IHE))
 head(df_cat_encoded)
 ```
 ```{r}
-# TODO: FIX THE X TICKS IN THESE GRAPHS, IT'S SO UGLY
 # visualizing categorical features with less than 12 unique observations per category
 categorical_features <- names(df_cat_encoded)
 df_cat_lt_12 <- df_cat_encoded[sapply(df_cat_encoded[categorical_features], function(x) length(unique(x)) < 12)]
@@ -228,10 +227,66 @@ for (feature in names(df_cat_gt_12)) {
 
 # grid.arrange(grobs = plots, ncol = 4)
 ```
+```{r}
+df_encoded <- cbind(df_cat_encoded, df_numeric)
+```
+
 
 # Exploratory Data Analysis
-```{r}
+## Numerical Features Only
 
+```{r}
+# dropping features that cause multicolinearity
+numeric_to_drop <- c("QR_PRO", "CR_PRO", "CC_PRO", "ENG_PRO", "WC_PRO", "FEP_PRO", "PERCENTILE")
+df_numeric_filtered <- df_numeric %>% select(-all_of(numeric_to_drop))
+```
+
+
+```{r}
+# Scatterplots
+plot(df_numeric_filtered)
+```
+
+
+```{r}
+# Correlation matrix heatmap
+library(corrplot)
+
+corr_matrix <- cor(df_numeric_filtered)
+corrplot(corr_matrix, method = "color", tl.srt = 45, addCoef.col = "white", number.cex = 0.8)
+```
+
+## Numerical and Categorical
+```{r}
+# Boxplots for each numerical and categorical feature with less than 13 unique values
+for (cat_feature in names(df_cat_lt_12)) {
+  plots <- lapply(names(df_numeric), function(numeric_feature) {
+    ggplot(df_encoded, aes_string(x = cat_feature, y = numeric_feature)) + 
+    geom_boxplot() + 
+    labs(title = paste(numeric_feature, " and ", cat_feature), y = numeric_feature, 
+         x = cat_feature) + 
+    theme_minimal() + 
+    theme(plot.title = element_text(size = 8)) + 
+    theme(axis.title.x = element_text(size=8))
+  })
+  
+  grid.arrange(grobs = plots, ncol = 4)
+}
+```
+
+# Applying Transformations and Feature Selection
+
+### Process for choosing which interactions to add
+1. Refer to previous boxplots and identify categorical/numerical interactions where the distribution of the numerical variable changes significantly as the categorical variable changes.
+2. If this is significantly difference from how G_SC changes as the categorical variable changes, include this interaction.
+* This is only for the S11 tests as the PRO tests are used to calculate G_SC (I THINK) so it'll cause multicolinearity if included in the regression
+* CAN ALSO FIND INTERACTION TERMS TO INCLUDE VIA LOOKING AT STATISTICAL SIGNIFICANCE OF DIFFERENCES COMPARED TO G_SC PROBABLY.
+```{r}
+# adding interaction terms
+
+```
+
+```{r}
 ```
 
 
@@ -242,7 +297,20 @@ for (feature in names(df_cat_gt_12)) {
 ```{r}
 ```
 
+# Making Actual Model
+```{r}
+```
+
 
 ```{r}
 ```
+
+
+```{r}
+```
+
+# Model Diagnostics
+```{r}
+```
+
 
