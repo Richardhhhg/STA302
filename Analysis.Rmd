@@ -274,42 +274,62 @@ for (cat_feature in names(df_cat_lt_12)) {
 }
 ```
 
-# Applying Transformations and Feature Selection
-
-### Process for choosing which interactions to add
-1. Refer to previous boxplots and identify categorical/numerical interactions where the distribution of the numerical variable changes significantly as the categorical variable changes.
-2. If this is significantly difference from how G_SC changes as the categorical variable changes, include this interaction.
-* This is only for the S11 tests as the PRO tests are used to calculate G_SC (I THINK) so it'll cause multicolinearity if included in the regression
-* CAN ALSO FIND INTERACTION TERMS TO INCLUDE VIA LOOKING AT STATISTICAL SIGNIFICANCE OF DIFFERENCES COMPARED TO G_SC PROBABLY.
+# Transformations and Initial Model
 ```{r}
-# adding interaction terms
-
-```
-
-```{r}
-```
-
-
-```{r}
+features <- c(names(df_numeric), names(df_cat_encoded))
+features <- features[!features %in% c(
+  # "QR_PRO", "CR_PRO", "CC_PRO", "ENG_PRO", "WC_PRO", "FEP_PRO",
+  "MAT_S11", "CR_S11", "CC_S11", "BIO_S11", "ENG_S11",
+  "PERCENTILE", "G_SC", "SCHOOL_NAME", "UNIVERSITY", 
+  "ACADEMIC_PROGRAM", "X2ND_DECILE", "QUARTILE"
+  # "AVG_S11"
+  )]
+# AVG_S11 dropped to prevent perfect multicolinearity
+features
 ```
 
 
 ```{r}
+# assessing multicolinearity
+library(car)
+
+formula <- as.formula(paste("G_SC ~", paste(features, collapse = " + ")))
+model <- lm(as.formula(formula), data = df_encoded)
+
+vif(model)
 ```
-
-# Making Actual Model
 ```{r}
-```
-
-
-```{r}
-```
-
-
-```{r}
+summary(model)
 ```
 
 # Model Diagnostics
+```{r}
+res <- residuals(model)
+y_pred <- fitted(model)
+plot(y_pred, res, abline(h = 0, lty = 2, col = "red"))
+```
+
+
+```{r}
+std_residual <- rstandard(model)
+hist(std_residual, breaks = 50, xlab="Standardized Residual", main="Histogram of Standardized Residuals")
+```
+
+
+```{r}
+```
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
 ```{r}
 ```
 
