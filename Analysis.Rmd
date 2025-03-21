@@ -274,18 +274,29 @@ for (cat_feature in names(df_cat_lt_12)) {
 }
 ```
 
-# Transformations and Initial Model
+# Initial Model
 ```{r}
+# TODO: CLEAN UP ALL CODE AFTER THIS
+# AVG_S11 dropped to prevent perfect multicolinearity
+# PRO tests dropped since G_SC calculated from PRO tests
+# Other indicators such as decile and percentile dropped as not informative
+# Any categorical variable with 20+ category dropped cuz yeah
 features <- c(names(df_numeric), names(df_cat_encoded))
 features <- features[!features %in% c(
-  # "QR_PRO", "CR_PRO", "CC_PRO", "ENG_PRO", "WC_PRO", "FEP_PRO",
-  "MAT_S11", "CR_S11", "CC_S11", "BIO_S11", "ENG_S11",
+  "QR_PRO", "CR_PRO", "CC_PRO", "ENG_PRO", "WC_PRO", "FEP_PRO",
+  # "MAT_S11", "CR_S11", "CC_S11", "BIO_S11", "ENG_S11",
   "PERCENTILE", "G_SC", "SCHOOL_NAME", "UNIVERSITY", 
-  "ACADEMIC_PROGRAM", "X2ND_DECILE", "QUARTILE"
-  # "AVG_S11"
+  "ACADEMIC_PROGRAM", "X2ND_DECILE", "QUARTILE",
+  "AVG_S11"
   )]
-# AVG_S11 dropped to prevent perfect multicolinearity
-features
+```
+
+```{r}
+# baseline model
+formula <- as.formula(paste("G_SC ~", paste(features, collapse = " + ")))
+model0 <- lm(as.formula(formula), data = df_encoded)
+
+summary(model0)
 ```
 
 
@@ -293,32 +304,109 @@ features
 # assessing multicolinearity
 library(car)
 
-formula <- as.formula(paste("G_SC ~", paste(features, collapse = " + ")))
-model <- lm(as.formula(formula), data = df_encoded)
-
-vif(model)
-```
-```{r}
-summary(model)
-```
-
-# Model Diagnostics
-```{r}
-res <- residuals(model)
-y_pred <- fitted(model)
-plot(y_pred, res, abline(h = 0, lty = 2, col = "red"))
+vif(model0)
 ```
 
 
 ```{r}
-std_residual <- rstandard(model)
-hist(std_residual, breaks = 50, xlab="Standardized Residual", main="Histogram of Standardized Residuals")
+# model diagnostics function
+plot_diagnostics <- function(model) {
+ res <- residuals(model)
+  y_pred <- fitted(model)
+  plot(y_pred, res, abline(h = 0, lty = 2, col = "red"))
+  
+  std_residual <- rstandard(model)
+  hist(std_residual, breaks = 50, xlab="Standardized Residual", main="Histogram of Standardized Residuals")
+  
+  qqnorm(res) 
+}
+```
+
+```{r}
+# diagnostics for baseline model
+plot_diagnostics(model0)
+```
+
+# Feature Selection
+```{r}
+# TODO: I THINK THIS IS COPY AND PASTED FROM ABOVE IDK AT THIS POINT
+# features <- c(names(df_numeric), names(df_cat_encoded))
+# # removing any feature that either has too many unique observations (categorical)
+# # or contributes to the calculation of/calculated from G_SC
+# problem_features <- c(
+#   "QR_PRO", "CR_PRO", "CC_PRO", "ENG_PRO", "WC_PRO", "FEP_PRO",
+#   # "MAT_S11", "CR_S11", "CC_S11", "BIO_S11", "ENG_S11",
+#   "PERCENTILE", "G_SC", "SCHOOL_NAME", "UNIVERSITY", 
+#   "ACADEMIC_PROGRAM", "X2ND_DECILE", "QUARTILE",
+#   "AVG_S11")
+# features <- features[!features %in% problem_features]
+```
+
+
+```{r}
+# feature_selection
+feature_selection <- function(model, feature_list) {
+  features_not_in_model <- features[features != "MAT_S11"]
+  rss_old <- deviance(model)
+  rss_reduction_threshold <- 50000 # arbitrary value
+  rss_reduction <- Inf
+  
+  model <- model
+  while (rss_reduction >= rss_reduction_threshold) {
+    rss_values <- vector()
+    
+    for (i in 1:length(features_not_in_model)) {
+      new_formula <- as.formula(paste(deparse(formula(model)), " + ", paste(features_not_in_model[i])))
+      model_temp <- lm(new_formula, data = df_encoded)
+      rss_new <- deviance(model_temp)
+      rss_reduction_temp <- rss_old - rss_new
+      rss_values <- append(rss_values, rss_reduction_temp)
+    }
+    
+    max_rss_ind <- which.max(rss_values)
+    new_formula <- as.formula(paste(deparse(formula(model)), " + ", paste(features_not_in_model[max_rss_ind])))
+    model <- lm(new_formula, data= df_encoded)
+    rss_reduction <- max(rss_values)
+    rss_old <- deviance(model)
+    features_not_in_model <- features_not_in_model[-max_rss_ind]
+  }
+  return(model)
+}
+```
+
+```{r}
+model1 <- lm("G_SC ~ MAT_S11", data = df_encoded)
+
+model1 <- feature_selection(model1, features)
+```
+
+```{r}
+summary(model1)
+anova(model1)
+```
+
+```{r}
+# diagnostics for second model
+plot_diagnostics(model1)
+```
+# Transformations and Interactions
+```{r}
+# TODO: DO THIS THING
 ```
 
 
 ```{r}
 ```
 
+
+```{r}
+```
+
+
+```{r}
+```
+
+
 ```{r}
 ```
 
@@ -330,7 +418,17 @@ hist(std_residual, breaks = 50, xlab="Standardized Residual", main="Histogram of
 ```{r}
 ```
 
+
 ```{r}
 ```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
 
 
