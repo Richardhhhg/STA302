@@ -120,13 +120,13 @@ grid.arrange(grobs = plots, ncol = 4)
 ordinal_features <- list(
   EDU_FATHER = c("Not sure", "Ninguno", "Incomplete primary", "Complete primary", 
                  "Incomplete Secundary", "Complete Secundary", 
-                 "Incomplete Professional Education", "Complete professional education",
                  "Incomplete technical or technological", "Complete technique or technology",
+                 "Incomplete Professional Education", "Complete professional education",
                  "Postgraduate education"),
   EDU_MOTHER = c("Not sure", "Ninguno", "Incomplete primary", "Complete primary", 
                  "Incomplete Secundary", "Complete Secundary", 
-                 "Incomplete Professional Education", "Complete professional education",
                  "Incomplete technical or technological", "Complete technique or technology",
+                 "Incomplete Professional Education", "Complete professional education",
                  "Postgraduate education"),
   PEOPLE_HOUSE = c("One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nueve",
                    "Ten", "Once", "Twelve or more"),
@@ -329,26 +329,16 @@ plot_diagnostics(model0)
 
 # Feature Selection
 ```{r}
-# TODO: I THINK THIS IS COPY AND PASTED FROM ABOVE IDK AT THIS POINT
-# features <- c(names(df_numeric), names(df_cat_encoded))
-# # removing any feature that either has too many unique observations (categorical)
-# # or contributes to the calculation of/calculated from G_SC
-# problem_features <- c(
-#   "QR_PRO", "CR_PRO", "CC_PRO", "ENG_PRO", "WC_PRO", "FEP_PRO",
-#   # "MAT_S11", "CR_S11", "CC_S11", "BIO_S11", "ENG_S11",
-#   "PERCENTILE", "G_SC", "SCHOOL_NAME", "UNIVERSITY", 
-#   "ACADEMIC_PROGRAM", "X2ND_DECILE", "QUARTILE",
-#   "AVG_S11")
-# features <- features[!features %in% problem_features]
+# due to high multicolinearity between parent education, the average parent education will be used instead
+df_encoded["AVG_PARENT_EDU"] <- as.factor(ceiling((as.numeric(df_encoded$EDU_FATHER) + as.numeric(df_encoded$EDU_MOTHER))/2))
 ```
-
 
 ```{r}
 # feature_selection
 feature_selection <- function(model, feature_list) {
   features_not_in_model <- features[features != "MAT_S11"]
   rss_old <- deviance(model)
-  rss_reduction_threshold <- 50000 # arbitrary value
+  rss_reduction_threshold <- 20000 # arbitrary value
   rss_reduction <- Inf
   
   model <- model
@@ -383,6 +373,7 @@ model1 <- feature_selection(model1, features)
 ```{r}
 summary(model1)
 anova(model1)
+vif(model1)
 ```
 
 ```{r}
@@ -391,39 +382,35 @@ plot_diagnostics(model1)
 ```
 # Transformations and Interactions
 ```{r}
-# TODO: DO THIS THING
+# adding interaction terms
+interactions <- c()
+for (i in 1:(length(features)-1)) {
+  for (j in (i+1):length(features)) {
+    interaction <- paste(c(features[i], features[j]), collapse = ":")
+    interactions <- append(interactions, interaction)
+  }
+}
+
+```
+
+```{r}
+features_with_int <- c(features, interactions)
+features_with_int
+```
+```{r}
+model2 <- lm("G_SC ~ MAT_S11", data = df_encoded)
+model2 <- feature_selection(model2, features_with_int)
 ```
 
 
 ```{r}
+summary(model2)
+anova(model2)
 ```
 
 
 ```{r}
-```
-
-
-```{r}
-```
-
-
-```{r}
-```
-
-
-```{r}
-```
-
-
-```{r}
-```
-
-
-```{r}
-```
-
-
-```{r}
+plot_diagnostics(model2)
 ```
 
 
