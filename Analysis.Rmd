@@ -335,9 +335,9 @@ df_encoded["AVG_PARENT_EDU"] <- as.factor(ceiling((as.numeric(df_encoded$EDU_FAT
 
 ```{r}
 # feature_selection
-feature_selection <- function(model, feature_list) {
+feature_selection <- function(model, features_list) {
   
-  features_not_in_model <- features[features != "SEL_IHE"]
+  features_not_in_model <- features_list[features_list != "SEL_IHE"]
   rss_old <- deviance(model)
   rss_reduction_threshold <- 4000 # arbitrary value, previously was 20000
   rss_reduction <- Inf
@@ -424,8 +424,12 @@ features_with_int <- c(features, interactions)
 features_with_int
 ```
 ```{r}
-model2 <- lm("G_SC ~ MAT_S11", data = df_encoded)  # this kinda wont work anymore, need to change it to SEL_IHE
+start.time <- Sys.time() # for funsies to see the O(n^2) runtime
+model2 <- lm("G_SC ~ SEL_IHE", data = df_encoded)
 model2 <- feature_selection(model2, features_with_int)
+end.time <- Sys.time()
+time.taken <- end.time - start.time
+time.taken
 ```
 
 
@@ -442,7 +446,7 @@ plot_diagnostics(model2)
 
 ```{r}
 # preliminary model for comparison
-model_prev <- lm(G_SC~ AVG_S11 + SEL+ SEL_IHE + GENDER + SCHOOL_NAT, data=df_clean)
+model_prev <- lm(G_SC~ AVG_S11 + SEL+ SEL_IHE + GENDER_MALE + SCHOOL_NAT, data=df_encoded)
 summary(model_prev)
 anova(model_prev)
 plot_diagnostics(model_prev)
