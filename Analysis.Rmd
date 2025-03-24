@@ -335,19 +335,18 @@ df_encoded["AVG_PARENT_EDU"] <- as.factor(ceiling((as.numeric(df_encoded$EDU_FAT
 
 ```{r}
 # feature_selection
-feature_selection <- function(model, feature_list) {
+feature_selection <- function(model, features_list, threshold) {
   
-  features_not_in_model <- features[features != "SEL_IHE"]
+  features_not_in_model <- features_list[features_list != "SEL_IHE"]
+  # print(features_not_in_model)
   rss_old <- deviance(model)
-  rss_reduction_threshold <- 4000 # arbitrary value, previously was 20000
+  rss_reduction_threshold <- threshold # arbitrary value, previously was 20000
   rss_reduction <- Inf
   model <- model
   while (rss_reduction >= rss_reduction_threshold) {
     #i made this size of features list so we can index instead of appending 
     rss_values <- numeric(length(features_not_in_model))
     for (i in 1:length(features_not_in_model)) {
-      # DEPARSE BREAKS A STRING INTO TWO IF ITS TOO BIG. THIS PREVENTED OUR MODEL FROM EVER HAVING MORE VARIABLES
-      #new_formula <- as.formula(paste(deparse(formula(model)), " + ", paste(features_not_in_model[i])))
       new_formula <- as.formula(paste(Reduce(paste, deparse(formula(model))), " + ", features_not_in_model[i]))
       model_temp <- lm(new_formula, data = df_encoded)
       rss_new <- deviance(model_temp)
@@ -356,13 +355,12 @@ feature_selection <- function(model, feature_list) {
       # made this index instead of append, also ensures index of rss_values n features_not_in_model match
     }
     max_rss_ind <- which.max(rss_values)
-    #new_formula <- as.formula(paste(deparse(formula(model)), " + ", paste(features_not_in_model[max_rss_ind])))
     new_formula <- as.formula(paste(Reduce(paste, deparse(formula(model))), " + ", features_not_in_model[max_rss_ind]))
     model <- lm(new_formula, data= df_encoded)
     rss_reduction <- max(rss_values)
     rss_old <- deviance(model)
     features_not_in_model <- features_not_in_model[-max_rss_ind]
-    
+    print(rss_reduction)
   }
   return(model)
 }
@@ -392,7 +390,7 @@ feature_selection_first <- function(model, feature_list) {
 ```{r}
 model1 <- lm("G_SC ~ SEL_IHE", data = df_encoded)  # changed this to sel_ihe
 
-model1 <- feature_selection(model1, features)
+model1 <- feature_selection(model1, features, 4000)
 ```
 
 ```{r}
@@ -423,9 +421,15 @@ for (i in 1:(length(features)-1)) {
 features_with_int <- c(features, interactions)
 features_with_int
 ```
+
+
 ```{r}
-model2 <- lm("G_SC ~ MAT_S11", data = df_encoded)  # this kinda wont work anymore, need to change it to SEL_IHE
-model2 <- feature_selection(model2, features_with_int)
+start.time <- Sys.time() # for funsies to see the O(n^2) runtime
+model2 <- lm("G_SC ~ SEL_IHE", data = df_encoded)
+model2 <- feature_selection(model2, features_with_int, 80000)
+end.time <- Sys.time()
+time.taken <- end.time - start.time
+time.taken
 ```
 
 
@@ -438,11 +442,18 @@ anova(model2)
 ```{r}
 plot_diagnostics(model2)
 ```
+```{r}
+model3 <- feature_selection(model1, features_with_int, 30000)
+
+summary(model3)
+anova(model3)
+plot_diagnostics(model3)
+```
 
 
 ```{r}
 # preliminary model for comparison
-model_prev <- lm(G_SC~ AVG_S11 + SEL+ SEL_IHE + GENDER + SCHOOL_NAT, data=df_clean)
+model_prev <- lm(G_SC~ AVG_S11 + SEL+ SEL_IHE + GENDER_MALE + SCHOOL_NAT, data=df_encoded)
 summary(model_prev)
 anova(model_prev)
 plot_diagnostics(model_prev)
