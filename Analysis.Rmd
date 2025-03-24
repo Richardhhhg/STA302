@@ -336,23 +336,23 @@ df_encoded["AVG_PARENT_EDU"] <- as.factor(ceiling((as.numeric(df_encoded$EDU_FAT
 ```{r}
 # feature_selection
 feature_selection <- function(model, feature_list) {
-  features_not_in_model <- features[features != "MAT_S11"]
+  #browser()
+  features_not_in_model <- features[features != "SEL_IHE"]
   rss_old <- deviance(model)
-  rss_reduction_threshold <- 20000 # arbitrary value
+  rss_reduction_threshold <- 7000 # arbitrary value, previously was 20000
   rss_reduction <- Inf
-  
   model <- model
   while (rss_reduction >= rss_reduction_threshold) {
-    rss_values <- vector()
-    
+    #i made this size of features list so we can index instead of appending 
+    rss_values <- numeric(length(features_not_in_model))
     for (i in 1:length(features_not_in_model)) {
       new_formula <- as.formula(paste(deparse(formula(model)), " + ", paste(features_not_in_model[i])))
       model_temp <- lm(new_formula, data = df_encoded)
       rss_new <- deviance(model_temp)
       rss_reduction_temp <- rss_old - rss_new
-      rss_values <- append(rss_values, rss_reduction_temp)
+      rss_values[i] <- rss_reduction_temp  
+      # made this index instead of append, also ensures index of rss_values n features_not_in_model match
     }
-    
     max_rss_ind <- which.max(rss_values)
     new_formula <- as.formula(paste(deparse(formula(model)), " + ", paste(features_not_in_model[max_rss_ind])))
     model <- lm(new_formula, data= df_encoded)
@@ -365,7 +365,28 @@ feature_selection <- function(model, feature_list) {
 ```
 
 ```{r}
-model1 <- lm("G_SC ~ MAT_S11", data = df_encoded)
+# function for finding the first predictor to add
+feature_selection_first <- function(model, feature_list) {
+  rss_values <- numeric(length(feature_list))
+  # Getting first ele
+  for (i in 1:length(feature_list)){
+    new_formula <- as.formula(paste(deparse(formula(model)), " + ", paste(feature_list[i])))
+    model_temp <- lm(new_formula, data = df_encoded)
+    rss_new <- deviance(model_temp)
+    rss_values[i] <- rss_new
+  }
+  min_rss_ind <- which.min(rss_values)
+  print(min_rss_ind)
+  print(feature_list[i])
+  new_formula <- as.formula(paste(deparse(formula(model)), " + ", paste(feature_list[min_rss_ind])))
+  model <- lm(new_formula, data = df_encoded)
+  return(model)
+}
+```
+
+
+```{r}
+model1 <- lm("G_SC ~ SEL_IHE", data = df_encoded)  # changed this to sel_ihe
 
 model1 <- feature_selection(model1, features)
 ```
@@ -374,6 +395,7 @@ model1 <- feature_selection(model1, features)
 summary(model1)
 anova(model1)
 vif(model1)
+deviance(model1)
 ```
 
 ```{r}
@@ -398,7 +420,7 @@ features_with_int <- c(features, interactions)
 features_with_int
 ```
 ```{r}
-model2 <- lm("G_SC ~ MAT_S11", data = df_encoded)
+model2 <- lm("G_SC ~ MAT_S11", data = df_encoded)  # this kinda wont work anymore, need to change it to SEL_IHE
 model2 <- feature_selection(model2, features_with_int)
 ```
 
@@ -415,7 +437,23 @@ plot_diagnostics(model2)
 
 
 ```{r}
+# preliminary model for comparison
+model_prev <- lm(G_SC~ AVG_S11 + SEL+ SEL_IHE + GENDER + SCHOOL_NAT, data=df_clean)
+summary(model_prev)
+anova(model_prev)
+plot_diagnostics(model_prev)
 ```
+
+```{r}
+# model including both
+model3 <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + REVENUE + OCC_FATHER, data=df_encoded)
+summary(model3)
+anova(model3)
+plot_diagnostics(model3)
+deviance(model3)
+vif(model3)
+```
+
 
 
 
