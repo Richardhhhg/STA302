@@ -336,17 +336,19 @@ df_encoded["AVG_PARENT_EDU"] <- as.factor(ceiling((as.numeric(df_encoded$EDU_FAT
 ```{r}
 # feature_selection
 feature_selection <- function(model, feature_list) {
-  #browser()
+  
   features_not_in_model <- features[features != "SEL_IHE"]
   rss_old <- deviance(model)
-  rss_reduction_threshold <- 7000 # arbitrary value, previously was 20000
+  rss_reduction_threshold <- 4000 # arbitrary value, previously was 20000
   rss_reduction <- Inf
   model <- model
   while (rss_reduction >= rss_reduction_threshold) {
     #i made this size of features list so we can index instead of appending 
     rss_values <- numeric(length(features_not_in_model))
     for (i in 1:length(features_not_in_model)) {
-      new_formula <- as.formula(paste(deparse(formula(model)), " + ", paste(features_not_in_model[i])))
+      # DEPARSE BREAKS A STRING INTO TWO IF ITS TOO BIG. THIS PREVENTED OUR MODEL FROM EVER HAVING MORE VARIABLES
+      #new_formula <- as.formula(paste(deparse(formula(model)), " + ", paste(features_not_in_model[i])))
+      new_formula <- as.formula(paste(Reduce(paste, deparse(formula(model))), " + ", features_not_in_model[i]))
       model_temp <- lm(new_formula, data = df_encoded)
       rss_new <- deviance(model_temp)
       rss_reduction_temp <- rss_old - rss_new
@@ -354,11 +356,13 @@ feature_selection <- function(model, feature_list) {
       # made this index instead of append, also ensures index of rss_values n features_not_in_model match
     }
     max_rss_ind <- which.max(rss_values)
-    new_formula <- as.formula(paste(deparse(formula(model)), " + ", paste(features_not_in_model[max_rss_ind])))
+    #new_formula <- as.formula(paste(deparse(formula(model)), " + ", paste(features_not_in_model[max_rss_ind])))
+    new_formula <- as.formula(paste(Reduce(paste, deparse(formula(model))), " + ", features_not_in_model[max_rss_ind]))
     model <- lm(new_formula, data= df_encoded)
     rss_reduction <- max(rss_values)
     rss_old <- deviance(model)
     features_not_in_model <- features_not_in_model[-max_rss_ind]
+    
   }
   return(model)
 }
@@ -370,7 +374,7 @@ feature_selection_first <- function(model, feature_list) {
   rss_values <- numeric(length(feature_list))
   # Getting first ele
   for (i in 1:length(feature_list)){
-    new_formula <- as.formula(paste(deparse(formula(model)), " + ", paste(feature_list[i])))
+    new_formula <- as.formula(paste(Reduce(paste, deparse(formula(model))), " + ", features_not_in_model[i]))
     model_temp <- lm(new_formula, data = df_encoded)
     rss_new <- deviance(model_temp)
     rss_values[i] <- rss_new
@@ -378,7 +382,7 @@ feature_selection_first <- function(model, feature_list) {
   min_rss_ind <- which.min(rss_values)
   print(min_rss_ind)
   print(feature_list[i])
-  new_formula <- as.formula(paste(deparse(formula(model)), " + ", paste(feature_list[min_rss_ind])))
+  new_formula <- as.formula(paste(Reduce(paste, deparse(formula(model))), " + ", features_not_in_model[min_rss_ind]))
   model <- lm(new_formula, data = df_encoded)
   return(model)
 }
