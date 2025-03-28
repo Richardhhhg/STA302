@@ -261,15 +261,15 @@ corrplot(corr_matrix, method = "color", tl.srt = 45, addCoef.col = "white", numb
 # Boxplots for each numerical and categorical feature with less than 13 unique values
 for (cat_feature in names(df_cat_lt_12)) {
   plots <- lapply(names(df_numeric), function(numeric_feature) {
-    ggplot(df_encoded, aes_string(x = cat_feature, y = numeric_feature)) + 
-    geom_boxplot() + 
-    labs(title = paste(numeric_feature, " and ", cat_feature), y = numeric_feature, 
-         x = cat_feature) + 
-    theme_minimal() + 
-    theme(plot.title = element_text(size = 8)) + 
+    ggplot(df_encoded, aes_string(x = cat_feature, y = numeric_feature)) +
+    geom_boxplot() +
+    labs(title = paste(numeric_feature, " and ", cat_feature), y = numeric_feature,
+         x = cat_feature) +
+    theme_minimal() +
+    theme(plot.title = element_text(size = 8)) +
     theme(axis.title.x = element_text(size=8))
   })
-  
+
   grid.arrange(grobs = plots, ncol = 4)
 }
 ```
@@ -469,6 +469,26 @@ deviance(model3)
 vif(model3)
 ```
 
+```{r}
+# model with interactions
+model4 <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + REVENUE + OCC_FATHER + EDU_MOTHER:PEOPLE_HOUSE + EDU_MOTHER + PEOPLE_HOUSE, data=df_encoded)
+summary(model4)
+anova(model4)
+plot_diagnostics(model4)
+deviance(model4)
+```
+
+```{r}
+df_encoded$EDU_MOTHER <- as.numeric(df_encoded$EDU_MOTHER)
+df_encoded$EDU_FATHER <- as.numeric(df_encoded$EDU_FATHER)
+df_encoded$PEOPLE_HOUSE <- as.numeric(df_encoded$PEOPLE_HOUSE)
+df_encoded$REVENUE <- as.numeric(df_encoded$REVENUE)
+
+# saving cleaned data as .dta file for stata analysis
+library(haven)
+
+write_dta(df_encoded, "df_stata.dta")
+```
 
 
 
