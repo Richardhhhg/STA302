@@ -437,7 +437,7 @@ plot_diagnostics(model_prev)
 
 ```{r}
 # best model without interactions
-model3 <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + REVENUE + OCC_FATHER, data=df_encoded)
+model3 <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + OCC_FATHER, data=df_encoded)
 summary(model3)
 anova(model3)
 plot_diagnostics(model3)
@@ -447,7 +447,7 @@ vif(model3)
 
 ```{r}
 # best model with interactions
-model4 <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + REVENUE + OCC_FATHER + EDU_MOTHER:PEOPLE_HOUSE + EDU_MOTHER + PEOPLE_HOUSE, data=df_encoded)
+model4 <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + REVENUE + OCC_FATHER + I(MAT_S11*BIO_S11), data=df_encoded)
 summary(model4)
 anova(model4)
 plot_diagnostics(model4)
