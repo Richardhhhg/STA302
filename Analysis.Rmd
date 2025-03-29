@@ -51,6 +51,7 @@ summary(df_numeric)
 ```{r}
 summary(df_categorical)
 ```
+
 ```{r}
 lapply(df_categorical, function(x) head(unique(x), 15))
 ```
@@ -72,11 +73,6 @@ df_categorical %>%
 df <- df %>%
   filter(EDU_FATHER != 0, EDU_MOTHER != 0, OCC_FATHER != 0, OCC_MOTHER != 0, 
          STRATUM != 0, SISBEN != 0, REVENUE != 0, JOB != 0)
-```
-
-```{r}
-# 2 encodings for 1 person in house (One and Once)
-df$PEOPLE_HOUSE[df$PEOPLE_HOUSE=="Once"] <- "One"
 ```
 
 ```{r}
@@ -192,6 +188,7 @@ levels(factor(df_categorical$SEL_IHE))
 ```{r}
 head(df_cat_encoded)
 ```
+
 ```{r}
 # visualizing categorical features with less than 12 unique observations per category
 categorical_features <- names(df_cat_encoded)
@@ -442,6 +439,7 @@ anova(model2)
 ```{r}
 plot_diagnostics(model2)
 ```
+
 ```{r}
 model3 <- feature_selection(model1, features_with_int, 30000)
 
@@ -479,15 +477,16 @@ deviance(model4)
 ```
 
 ```{r}
-df_encoded$EDU_MOTHER <- as.numeric(df_encoded$EDU_MOTHER)
-df_encoded$EDU_FATHER <- as.numeric(df_encoded$EDU_FATHER)
-df_encoded$PEOPLE_HOUSE <- as.numeric(df_encoded$PEOPLE_HOUSE)
-df_encoded$REVENUE <- as.numeric(df_encoded$REVENUE)
+df$REVENUE <- as.numeric(df_encoded$REVENUE)
 
 # saving cleaned data as .dta file for stata analysis
 library(haven)
 
-write_dta(df_encoded, "df_stata.dta")
+write_dta(df, "df_stata.dta")
+```
+
+```{r}
+head(df)
 ```
 
 

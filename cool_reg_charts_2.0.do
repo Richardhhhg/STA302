@@ -1,8 +1,8 @@
 ssc install setroot, replace
 ssc install estout, replace
 
-// setroot
-cd "C:\Users\Richard Hong\Desktop\Skool\Year 3\STA302\"
+setroot
+// cd "C:\Users\Richard Hong\Desktop\Skool\Year 3\STA302\"
 use "df_stata.dta", clear
 
 // gen GENDER_F=(GENDER_M==1)
@@ -10,13 +10,13 @@ use "df_stata.dta", clear
 // gen SEL_2=(SEL==2)
 // gen SEL_3=(SEL==3)
 // gen SEL_4=(SEL==4)
-// gen SEL_IHE_2=(SEL_IHE==2)
-// gen SEL_IHE_3=(SEL_IHE==3)
-// gen SEL_IHE_4=(SEL_IHE==4)
+gen SEL_IHE_2=(SEL_IHE==2)
+gen SEL_IHE_3=(SEL_IHE==3)
+gen SEL_IHE_4=(SEL_IHE==4)
 
-gen EDU_MOTHERxPEOPLE_HOUSE = EDU_MOTHER * PEOPLE_HOUSE
+// gen EDU_MOTHERxPEOPLE_HOUSE = EDU_MOTHER * PEOPLE_HOUSE
 
-global features MAT_S11 ENG_S11 CR_S11 CC_S11 BIO_S11 i.SEL_IHE REVENUE i.OCC_FATHER EDU_MOTHER PEOPLE_HOUSE EDU_MOTHERxPEOPLE_HOUSE
+global features MAT_S11 ENG_S11 CR_S11 CC_S11 BIO_S11 SEL_IHE_2 SEL_IHE_3 SEL_IHE_4 REVENUE OCC_FATHER
 
 // =======
 reg G_SC $features
