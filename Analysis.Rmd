@@ -24,8 +24,7 @@ df <- df %>%
   mutate("AVG_S11" = (MAT_S11 + CR_S11 + CC_S11 + BIO_S11 + ENG_S11) / 5)
 
 continuous_cols <- c("MAT_S11", "CR_S11", "CC_S11", "BIO_S11", "ENG_S11", "G_SC", "AVG_S11",
-                     "QR_PRO", "CR_PRO", "CC_PRO", "ENG_PRO", "WC_PRO", "FEP_PRO", "PERCENTILE",
-                     "G_SC")
+                     "QR_PRO", "CR_PRO", "CC_PRO", "ENG_PRO", "WC_PRO", "FEP_PRO", "G_SC")
 
 df <- df%>%
   mutate(across(!all_of(continuous_cols), as.factor))
@@ -35,8 +34,8 @@ colSums(is.na(df))
 ```
 
 ```{r}
-# removing id and other variables
-df <- df %>% select(-c(...10, X, COD_S11, Cod_SPro))
+# removing identifies and variables derived from others
+df <- df %>% select(-c(...10, X, COD_S11, Cod_SPro, QUARTILE, X2ND_DECILE, PERCENTILE))
 ```
 
 ```{r}
@@ -49,9 +48,12 @@ summary(df_numeric)
 ```
 
 ```{r}
+# frequency of all values
 summary(df_categorical)
 ```
+
 ```{r}
+# unique values for each category
 lapply(df_categorical, function(x) head(unique(x), 15))
 ```
 
@@ -59,7 +61,6 @@ lapply(df_categorical, function(x) head(unique(x), 15))
 # number of distinct observations in each column for categorical
 df_categorical %>% summarise_all(~ n_distinct(.))
 ```
-* NOTE (TO BE REMOVED LATER): Should probably do multiple analyses, with some having the varaibles that have lots of observations (20+) as fixed effects rather than variables we care for
 
 ```{r}
 # missing values were encoded as 0's
@@ -72,11 +73,6 @@ df_categorical %>%
 df <- df %>%
   filter(EDU_FATHER != 0, EDU_MOTHER != 0, OCC_FATHER != 0, OCC_MOTHER != 0, 
          STRATUM != 0, SISBEN != 0, REVENUE != 0, JOB != 0)
-```
-
-```{r}
-# 2 encodings for 1 person in house (One and Once)
-df$PEOPLE_HOUSE[df$PEOPLE_HOUSE=="Once"] <- "One"
 ```
 
 ```{r}
@@ -98,21 +94,6 @@ grid.arrange(grobs = plots, ncol = 4)
 
 ## Categorical Feature Things
 ```{r}
-##TODO: MAKE THIS CODE PRETTIER CUZ HOLY FRICK THIS IS SO UGLY
-
-# investigating the values for ordinal data
-# levels(factor(df_categorical$EDU_FATHER))
-# levels(factor(df_categorical$EDU_MOTHER))
-# levels(factor(df_categorical$PEOPLE_HOUSE))
-# levels(factor(df_categorical$REVENUE))
-# levels(factor(df_categorical$STRATUM))
-# levels(factor(df_categorical$SISBEN))
-# levels(factor(df_categorical$SEL))
-# levels(factor(df_categorical$SEL_IHE))
-# levels(factor(df_categorical$MIC_OVEN))
-```
-
-```{r}
 # Label Encoding Categorical Variables as numbers
 
 # For ordinal Categories (EDU_FATHER, EDU_MOTHER, PEOPLE_HOUSE, REVENUE, STRATUM, SISBEN)
@@ -130,10 +111,6 @@ ordinal_features <- list(
                  "Postgraduate education"),
   PEOPLE_HOUSE = c("One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nueve",
                    "Ten", "Once", "Twelve or more"),
-  REVENUE = c("less than 1 LMMW", "Between 1 and less than 2 LMMW",
-              "Between 2 and less than 3 LMMW", "Between 3 and less than 5 LMMW", 
-              "Between 5 and less than 7 LMMW", "Between 7 and less than 10 LMMW",
-              "10 or more LMMW"),
   STRATUM = c("Stratum 1", "Stratum 2", "Stratum 3", "Stratum 4", "Stratum 5", "Stratum 6"),
   SISBEN = c("It is not classified by the SISBEN", "Level 1", "Level 2", "Level 3",
              "Esta clasificada en otro Level del SISBEN"),
@@ -144,6 +121,25 @@ df_cat_encoded <- data.frame(df_categorical)
 df_cat_encoded[names(ordinal_features)] <- lapply(names(ordinal_features), function(feature){
   df_cat_encoded[[feature]] <- as.factor(as.integer(factor(df_categorical[[feature]], levels = ordinal_features[[feature]], ordered = TRUE)))
 })
+```
+
+
+```{r}
+# special ordinal encoding for Revenue and people_house since can tell 
+# value of difference from one category to another
+# revenue level is average of LMMW
+df_cat_encoded <- df_cat_encoded %>%
+  mutate(REVENUE = case_when(
+    REVENUE == "less than 1 LMMW" ~ 0.5,
+    REVENUE == "Between 1 and less than 2 LMMW" ~ 1.5,
+    REVENUE == "Between 2 and less than 3 LMMW" ~ 2.3, 
+    REVENUE == "Between 3 and less than 5 LMMW" ~ 4, 
+    REVENUE == "Between 5 and less than 7 LMMW" ~ 6, 
+    REVENUE == "Between 7 and less than 10 LMMW" ~ 8.5,
+    REVENUE == "10 or more LMMW" ~ 10
+  ))
+
+df_cat_encoded$PEOPLE_HOUSE <- as.numeric(df_cat_encoded$PEOPLE_HOUSE)
 ```
 
 ```{r}
@@ -166,8 +162,7 @@ names(df_cat_encoded)[names(df_cat_encoded) == "GENDER"] <- "GENDER_MALE"
 ```{r}
 # encoding everything else
 remaining_features <- c("SCHOOL_NAME", "SCHOOL_NAT", "SCHOOL_TYPE", "UNIVERSITY",
-                        "ACADEMIC_PROGRAM", "SEL", "SEL_IHE", "X2ND_DECILE", "QUARTILE",
-                        "OCC_FATHER", "OCC_MOTHER")
+                        "ACADEMIC_PROGRAM", "SEL", "SEL_IHE", "OCC_FATHER", "OCC_MOTHER")
 
 df_cat_encoded[remaining_features] <- lapply(remaining_features, function(feature){
   df_cat_encoded[[feature]] <- as.factor(as.integer(factor(df_categorical[[feature]])))
@@ -175,23 +170,10 @@ df_cat_encoded[remaining_features] <- lapply(remaining_features, function(featur
 ```
 
 ```{r}
-# TODO: MAKE THIS CODE A LOT MORE ELEGENT CUZ THIS IS SUPER UGLY
-# View Encodings for everything else
-levels(factor(df_categorical$GENDER))
-# levels(factor(df_categorical$SCHOOL_NAME))
-levels(factor(df_categorical$SCHOOL_NAT))
-levels(factor(df_categorical$SCHOOL_TYPE))
-# levels(factor(df_categorical$UNIVERSITY))
-# levels(factor(df_categorical$ACADEMIC_PROGRAM))
-levels(factor(df_categorical$SEL))
-levels(factor(df_categorical$SEL_IHE))
-# levels(factor(df_categorical$OCC_FATHER))
-# levels(factor(df_categorical$OCC_MOTHER))
-```
-
-```{r}
+# final category encoded dataframe
 head(df_cat_encoded)
 ```
+
 ```{r}
 # visualizing categorical features with less than 12 unique observations per category
 categorical_features <- names(df_cat_encoded)
@@ -236,8 +218,8 @@ df_encoded <- cbind(df_cat_encoded, df_numeric)
 ## Numerical Features Only
 
 ```{r}
-# dropping features that cause multicolinearity
-numeric_to_drop <- c("QR_PRO", "CR_PRO", "CC_PRO", "ENG_PRO", "WC_PRO", "FEP_PRO", "PERCENTILE")
+# dropping features that are from same test period as outcome
+numeric_to_drop <- c("QR_PRO", "CR_PRO", "CC_PRO", "ENG_PRO", "WC_PRO", "FEP_PRO")
 df_numeric_filtered <- df_numeric %>% select(-all_of(numeric_to_drop))
 ```
 
@@ -261,15 +243,15 @@ corrplot(corr_matrix, method = "color", tl.srt = 45, addCoef.col = "white", numb
 # Boxplots for each numerical and categorical feature with less than 13 unique values
 for (cat_feature in names(df_cat_lt_12)) {
   plots <- lapply(names(df_numeric), function(numeric_feature) {
-    ggplot(df_encoded, aes_string(x = cat_feature, y = numeric_feature)) + 
-    geom_boxplot() + 
-    labs(title = paste(numeric_feature, " and ", cat_feature), y = numeric_feature, 
-         x = cat_feature) + 
-    theme_minimal() + 
-    theme(plot.title = element_text(size = 8)) + 
+    ggplot(df_encoded, aes_string(x = cat_feature, y = numeric_feature)) +
+    geom_boxplot() +
+    labs(title = paste(numeric_feature, " and ", cat_feature), y = numeric_feature,
+         x = cat_feature) +
+    theme_minimal() +
+    theme(plot.title = element_text(size = 8)) +
     theme(axis.title.x = element_text(size=8))
   })
-  
+
   grid.arrange(grobs = plots, ncol = 4)
 }
 ```
@@ -284,7 +266,6 @@ for (cat_feature in names(df_cat_lt_12)) {
 features <- c(names(df_numeric), names(df_cat_encoded))
 features <- features[!features %in% c(
   "QR_PRO", "CR_PRO", "CC_PRO", "ENG_PRO", "WC_PRO", "FEP_PRO",
-  # "MAT_S11", "CR_S11", "CC_S11", "BIO_S11", "ENG_S11",
   "PERCENTILE", "G_SC", "SCHOOL_NAME", "UNIVERSITY", 
   "ACADEMIC_PROGRAM", "X2ND_DECILE", "QUARTILE",
   "AVG_S11"
@@ -328,11 +309,6 @@ plot_diagnostics(model0)
 ```
 
 # Feature Selection
-```{r}
-# due to high multicolinearity between parent education, the average parent education will be used instead
-df_encoded["AVG_PARENT_EDU"] <- as.factor(ceiling((as.numeric(df_encoded$EDU_FATHER) + as.numeric(df_encoded$EDU_MOTHER))/2))
-```
-
 ```{r}
 # feature_selection
 feature_selection <- function(model, features_list, threshold) {
@@ -404,6 +380,7 @@ deviance(model1)
 # diagnostics for second model
 plot_diagnostics(model1)
 ```
+
 # Transformations and Interactions
 ```{r}
 # adding interaction terms
@@ -424,12 +401,9 @@ features_with_int
 
 
 ```{r}
-start.time <- Sys.time() # for funsies to see the O(n^2) runtime
+# model with just interactions
 model2 <- lm("G_SC ~ SEL_IHE", data = df_encoded)
 model2 <- feature_selection(model2, features_with_int, 80000)
-end.time <- Sys.time()
-time.taken <- end.time - start.time
-time.taken
 ```
 
 
@@ -442,7 +416,9 @@ anova(model2)
 ```{r}
 plot_diagnostics(model2)
 ```
+
 ```{r}
+# taking original model and adding interactions
 model3 <- feature_selection(model1, features_with_int, 30000)
 
 summary(model3)
@@ -460,7 +436,7 @@ plot_diagnostics(model_prev)
 ```
 
 ```{r}
-# model including both
+# best model without interactions
 model3 <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + REVENUE + OCC_FATHER, data=df_encoded)
 summary(model3)
 anova(model3)
@@ -469,6 +445,20 @@ deviance(model3)
 vif(model3)
 ```
 
+```{r}
+# best model with interactions
+model4 <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + REVENUE + OCC_FATHER + EDU_MOTHER:PEOPLE_HOUSE + EDU_MOTHER + PEOPLE_HOUSE, data=df_encoded)
+summary(model4)
+anova(model4)
+plot_diagnostics(model4)
+deviance(model4)
+```
 
+```{r}
+# transfering data into .dta format for stata regression tables
+library(haven)
 
+df$REVENUE <- as.numeric(df_encoded$REVENUE)
 
+write_dta(df, "df_stata.dta")
+```
