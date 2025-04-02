@@ -92,7 +92,7 @@ plots <- lapply(names(df_numeric), function(feature) {
 grid.arrange(grobs = plots, ncol = 4)
 ```
 
-## Categorical Feature Things
+## Categorical Features Transformations and Visualizations
 ```{r}
 # Label Encoding Categorical Variables as numbers
 
@@ -291,7 +291,7 @@ vif(model0)
 
 ```{r}
 # model diagnostics function
-plot_diagnostics <- function(model) {
+plot_diagnostics <- function(model, data = df_encoded) {
  res <- residuals(model)
   y_pred <- fitted(model)
   plot(y_pred, res, abline(h = 0, lty = 2, col = "red"))
@@ -299,7 +299,10 @@ plot_diagnostics <- function(model) {
   std_residual <- rstandard(model)
   hist(std_residual, breaks = 50, xlab="Standardized Residual", main="Histogram of Standardized Residuals")
   
-  qqnorm(res) 
+  qqnorm(res)
+  
+  y_pred <- fitted(model)
+  plot(y_pred, data$G_SC)
 }
 ```
 
@@ -311,7 +314,7 @@ plot_diagnostics(model0)
 # Feature Selection
 ```{r}
 # feature_selection
-feature_selection <- function(model, features_list, threshold) {
+feature_selection <- function(model, features_list, threshold, data = df_encoded) {
   
   features_not_in_model <- features_list[features_list != "SEL_IHE"]
   # print(features_not_in_model)
@@ -324,7 +327,7 @@ feature_selection <- function(model, features_list, threshold) {
     rss_values <- numeric(length(features_not_in_model))
     for (i in 1:length(features_not_in_model)) {
       new_formula <- as.formula(paste(Reduce(paste, deparse(formula(model))), " + ", features_not_in_model[i]))
-      model_temp <- lm(new_formula, data = df_encoded)
+      model_temp <- lm(new_formula, data = data)
       rss_new <- deviance(model_temp)
       rss_reduction_temp <- rss_old - rss_new
       rss_values[i] <- rss_reduction_temp  
@@ -332,7 +335,7 @@ feature_selection <- function(model, features_list, threshold) {
     }
     max_rss_ind <- which.max(rss_values)
     new_formula <- as.formula(paste(Reduce(paste, deparse(formula(model))), " + ", features_not_in_model[max_rss_ind]))
-    model <- lm(new_formula, data= df_encoded)
+    model <- lm(new_formula, data = data)
     rss_reduction <- max(rss_values)
     rss_old <- deviance(model)
     features_not_in_model <- features_not_in_model[-max_rss_ind]
@@ -344,12 +347,12 @@ feature_selection <- function(model, features_list, threshold) {
 
 ```{r}
 # function for finding the first predictor to add
-feature_selection_first <- function(model, feature_list) {
+feature_selection_first <- function(model, feature_list, df = df_encoded) {
   rss_values <- numeric(length(feature_list))
   # Getting first ele
   for (i in 1:length(feature_list)){
     new_formula <- as.formula(paste(Reduce(paste, deparse(formula(model))), " + ", features_not_in_model[i]))
-    model_temp <- lm(new_formula, data = df_encoded)
+    model_temp <- lm(new_formula, data = df)
     rss_new <- deviance(model_temp)
     rss_values[i] <- rss_new
   }
@@ -357,7 +360,7 @@ feature_selection_first <- function(model, feature_list) {
   print(min_rss_ind)
   print(feature_list[i])
   new_formula <- as.formula(paste(Reduce(paste, deparse(formula(model))), " + ", features_not_in_model[min_rss_ind]))
-  model <- lm(new_formula, data = df_encoded)
+  model <- lm(new_formula, data = df)
   return(model)
 }
 ```
@@ -374,10 +377,6 @@ summary(model1)
 anova(model1)
 vif(model1)
 deviance(model1)
-```
-
-```{r}
-# diagnostics for second model
 plot_diagnostics(model1)
 ```
 
@@ -404,16 +403,9 @@ features_with_int
 # model with just interactions
 model2 <- lm("G_SC ~ SEL_IHE", data = df_encoded)
 model2 <- feature_selection(model2, features_with_int, 80000)
-```
 
-
-```{r}
 summary(model2)
 anova(model2)
-```
-
-
-```{r}
 plot_diagnostics(model2)
 ```
 
@@ -474,28 +466,71 @@ plot_diagnostics(model5)
 deviance(model5)
 ```
 
+## Outliers
 ```{r}
 # Outliers
 # 3 outliers
 stanres <- rstudent(model5)
+
 sum(stanres >= 4)
 
 outlier_indices <- which(stanres >= 4)
-# outliers <- df_encoded[outlier_indices, ]
-```
 
+df_outlier <- df[outlier_indices, ]
+df_outlier
+```
+All individuals who are outliers did really poorly on S11 (avg of ~40%) but did moderately better on G_SC (avg of ~60%)
+- Score for the PRO exams on average were just a lot higher than on S11 exams. Although can't see from the summary of the numeric data, from visualizations, the pro tests are a lot more left skewed. But should still be noted that G_SC and FEP_PRO are fairly normally distributed.
+- Could be like due to difference in times resulting in the student having more time to reevaluate decisions and study for pro tests?
+
+## Leverage Points
 ```{r}
 # Leverage Points
 # 124 leverage points
+# TODO: 114 leverage points when using p+1 instead of just p
 leverage_values <- hatvalues(model5)
 p <- length(coef(model5)) - 1
 n <- nrow(df_encoded) 
-leverage_threshold <- 3*p/n       # not using 2*(p+1) / n, being more strict
+leverage_threshold <- 3*(p+1)/n       # not using 2*(p+1) / n, being more strict
 
 leverage_indices <- which(leverage_values > leverage_threshold)
-# leverage_points <- df_encoded[leverage_indices, ]
+df_leverage <- df_encoded[leverage_indices, ]
+# nrow(leverage_points)
+head(df_leverage)
+```
+```{r}
+summary(df_leverage)
 ```
 
+```{r}
+# Visualizations of Numeric Data for Leverage Points
+plots <- lapply(names(df_numeric), function(feature) {
+  ggplot(df_leverage, aes_string(x = feature)) + geom_histogram(bins = 30) + labs(title = paste("Distribution of ", feature)) +
+    theme_minimal() + theme(plot.title = element_text(size = 8)) + theme(axis.title.x = element_text(size=8))
+})
+
+grid.arrange(grobs = plots, ncol = 4)
+```
+```{r}
+# visualizations for categorical features of leverage points data
+plots <- lapply(names(df_cat_lt_12)[0:16], function(feature) {
+  ggplot(df_leverage, aes_string(x = feature)) + geom_histogram(stat="count") + labs(title = paste("Distribution of ", feature)) +
+    theme_minimal() + theme(plot.title = element_text(size = 8)) + theme(axis.title.x = element_text(size=8))
+})
+
+grid.arrange(grobs = plots, ncol = 4)
+
+plots <- lapply(names(df_cat_lt_12)[16:length(names(df_cat_lt_12))], function(feature) {
+  ggplot(df_leverage, aes_string(x = feature)) + geom_histogram(stat="count") + labs(title = paste("Distribution of ", feature)) +
+    theme_minimal() + theme(plot.title = element_text(size = 8)) + theme(axis.title.x = element_text(size=8))
+})
+
+grid.arrange(grobs = plots, ncol = 4)
+```
+When comparing the summary statistics of the individuals who are classified as leverage points for out regression model, we find that there is quite a significant difference in their Math and Biology S11 scores and the average. In this subset of our sample, the average score on Math and Biology for the S11 exams was 73.09 and 72.04 respectively. In the sample as a whole, the average Math and biology scores for the S11 exams were 64 and 63.87 respectively.
+This could potentially mean that these individuals were driving up the coefficient on Math and Biology S11 in our regression, explaining why they were significantly higher the other S11 test coefficients despite having similar distributions and correlations with the outcome variable G_SC.
+
+## Influential Points
 ```{r}
 # Influential Points
 # 620 across all methods
@@ -505,8 +540,11 @@ influential_indices <- which(apply(inflm.SR$is.inf, 1, any))
 #influential_df <- as.data.frame(inflm.SR$is.inf)
 #influential_df <- influential_df[apply(influential_df, 1, any), ]
 #nrow(influential_df)
+influential_df <- df_encoded[influential_indices, ]
+influential_df
 ```
 
+## Finalization 
 ```{r}
 # Combining all three
 all_bad_indices <- unique(c(outlier_indices, leverage_indices, influential_indices))
@@ -518,10 +556,26 @@ length(all_bad_indices)
 model_revised <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + OCC_FATHER + I(MAT_S11*BIO_S11), data = df_encoded[-all_bad_indices, ])
 summary(model_revised)
 anova(model_revised)
-plot_diagnostics(model_revised)
+plot_diagnostics(model_revised, data = df_encoded[-all_bad_indices, ])
 deviance(model_revised)
 ```
 
+```{r}
+model_temp <- lm(G_SC ~ SEL_IHE, data = df_encoded[-all_bad_indices, ])
+model_epic <- feature_selection(model_temp, features, 4000, data = df_encoded[-all_bad_indices, ])
+
+summary(model_epic)
+anova(model_epic)
+plot_diagnostics(model_epic, data = df_encoded[-all_bad_indices, ])
+```
+```{r}
+model_temp <- lm(G_SC ~ SEL_IHE, data = df_encoded[-all_bad_indices, ])
+model_epic <- feature_selection(model_temp, features, 4000, data = df_encoded[-all_bad_indices, ])
+
+summary(model_epic)
+anova(model_epic)
+plot_diagnostics(model_epic, data = df_encoded[-all_bad_indices, ])
+```
 
 
 
