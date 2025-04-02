@@ -300,6 +300,9 @@ plot_diagnostics <- function(model, data = df_encoded) {
   hist(std_residual, breaks = 50, xlab="Standardized Residual", main="Histogram of Standardized Residuals")
   
   qqnorm(res)
+  
+  y_pred <- fitted(model)
+  plot(y_pred, data$G_SC)
 
 }
 ```
@@ -376,9 +379,6 @@ anova(model1)
 vif(model1)
 deviance(model1)
 plot_diagnostics(model1)
-
-y_pred <- fitted(model1)
-plot(y_pred, df_encoded$G_SC)
 ```
 
 # Transformations and Interactions
@@ -408,8 +408,6 @@ model2 <- feature_selection(model2, features_with_int, 80000)
 summary(model2)
 anova(model2)
 plot_diagnostics(model2)
-y_pred <- fitted(model2)
-plot(y_pred, df_encoded$G_SC)
 ```
 
 ```{r}
@@ -419,8 +417,6 @@ model3 <- feature_selection(model1, features_with_int, 30000)
 summary(model3)
 anova(model3)
 plot_diagnostics(model3)
-y_pred <- fitted(model3)
-plot(y_pred, df_encoded$G_SC)
 ```
 
 
@@ -430,8 +426,6 @@ model_prev <- lm(G_SC~ AVG_S11 + SEL+ SEL_IHE + GENDER_MALE + SCHOOL_NAT, data=d
 summary(model_prev)
 anova(model_prev)
 plot_diagnostics(model_prev)
-y_pred <- fitted(model2)
-plot(y_pred, df_encoded$G_SC)
 ```
 
 ```{r}
@@ -592,8 +586,6 @@ summary(model_revised)
 anova(model_revised)
 plot_diagnostics(model_revised, data = df_encoded[-all_bad_indices, ])
 deviance(model_revised)
-y_pred <- fitted(model_revised)
-plot(y_pred, df_encoded[-all_bad_indices, ]$G_SC)
 ```
 
 ```{r}
