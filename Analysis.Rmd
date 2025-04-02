@@ -92,7 +92,7 @@ plots <- lapply(names(df_numeric), function(feature) {
 grid.arrange(grobs = plots, ncol = 4)
 ```
 
-## Categorical Feature Things
+## Categorical Features Transformations and Visualizations
 ```{r}
 # Label Encoding Categorical Variables as numbers
 
@@ -299,7 +299,7 @@ plot_diagnostics <- function(model) {
   std_residual <- rstandard(model)
   hist(std_residual, breaks = 50, xlab="Standardized Residual", main="Histogram of Standardized Residuals")
   
-  qqnorm(res) 
+  qqnorm(res)
 }
 ```
 
@@ -374,11 +374,10 @@ summary(model1)
 anova(model1)
 vif(model1)
 deviance(model1)
-```
-
-```{r}
-# diagnostics for second model
 plot_diagnostics(model1)
+
+y_pred <- fitted(model1)
+plot(y_pred, df_encoded$G_SC)
 ```
 
 # Transformations and Interactions
@@ -404,17 +403,12 @@ features_with_int
 # model with just interactions
 model2 <- lm("G_SC ~ SEL_IHE", data = df_encoded)
 model2 <- feature_selection(model2, features_with_int, 80000)
-```
 
-
-```{r}
 summary(model2)
 anova(model2)
-```
-
-
-```{r}
 plot_diagnostics(model2)
+y_pred <- fitted(model2)
+plot(y_pred, df_encoded$G_SC)
 ```
 
 ```{r}
@@ -424,6 +418,8 @@ model3 <- feature_selection(model1, features_with_int, 30000)
 summary(model3)
 anova(model3)
 plot_diagnostics(model3)
+y_pred <- fitted(model3)
+plot(y_pred, df_encoded$G_SC)
 ```
 
 
@@ -433,6 +429,8 @@ model_prev <- lm(G_SC~ AVG_S11 + SEL+ SEL_IHE + GENDER_MALE + SCHOOL_NAT, data=d
 summary(model_prev)
 anova(model_prev)
 plot_diagnostics(model_prev)
+y_pred <- fitted(model2)
+plot(y_pred, df_encoded$G_SC)
 ```
 
 ```{r}
@@ -474,28 +472,66 @@ plot_diagnostics(model5)
 deviance(model5)
 ```
 
+## Outliers
 ```{r}
 # Outliers
 # 3 outliers
 stanres <- rstudent(model5)
+
 sum(stanres >= 4)
 
 outlier_indices <- which(stanres >= 4)
-# outliers <- df_encoded[outlier_indices, ]
-```
 
+df_outlier <- df[outlier_indices, ]
+df_outlier
+```
+All individuals who are outliers did really poorly on S11 (avg of ~40%) but did moderately better on G_SC (avg of ~60%)
+- Score for the PRO exams on average were just a lot higher than on S11 exams. Although can't see from the summary of the numeric data, from visualizations, the pro tests are a lot more left skewed. But should still be noted that G_SC and FEP_PRO are fairly normally distributed.
+- Could be like due to difference in times resulting in the student having more time to reevaluate decisions and study for pro tests?
+
+## Leverage Points
 ```{r}
 # Leverage Points
 # 124 leverage points
+# TODO: 114 leverage points when using p+1 instead of just p
 leverage_values <- hatvalues(model5)
 p <- length(coef(model5)) - 1
 n <- nrow(df_encoded) 
-leverage_threshold <- 3*p/n       # not using 2*(p+1) / n, being more strict
+leverage_threshold <- 3*(p+1)/n       # not using 2*(p+1) / n, being more strict
 
 leverage_indices <- which(leverage_values > leverage_threshold)
-# leverage_points <- df_encoded[leverage_indices, ]
+df_leverage <- df_encoded[leverage_indices, ]
+# nrow(leverage_points)
+head(df_leverage)
+```
+```{r}
+# Visualizations of Numeric Data for Leverage Points
+plots <- lapply(names(df_numeric), function(feature) {
+  ggplot(df_leverage, aes_string(x = feature)) + geom_histogram(bins = 30) + labs(title = paste("Distribution of ", feature)) +
+    theme_minimal() + theme(plot.title = element_text(size = 8)) + theme(axis.title.x = element_text(size=8))
+})
+
+grid.arrange(grobs = plots, ncol = 4)
+```
+```{r}
+# visualizations for categorical features of leverage points data
+plots <- lapply(names(df_cat_lt_12)[0:16], function(feature) {
+  ggplot(df_leverage, aes_string(x = feature)) + geom_histogram(stat="count") + labs(title = paste("Distribution of ", feature)) +
+    theme_minimal() + theme(plot.title = element_text(size = 8)) + theme(axis.title.x = element_text(size=8))
+})
+
+grid.arrange(grobs = plots, ncol = 4)
+
+plots <- lapply(names(df_cat_lt_12)[16:length(names(df_cat_lt_12))], function(feature) {
+  ggplot(df_leverage, aes_string(x = feature)) + geom_histogram(stat="count") + labs(title = paste("Distribution of ", feature)) +
+    theme_minimal() + theme(plot.title = element_text(size = 8)) + theme(axis.title.x = element_text(size=8))
+})
+
+grid.arrange(grobs = plots, ncol = 4)
 ```
 
+
+## Influential Points
 ```{r}
 # Influential Points
 # 620 across all methods
@@ -505,6 +541,8 @@ influential_indices <- which(apply(inflm.SR$is.inf, 1, any))
 #influential_df <- as.data.frame(inflm.SR$is.inf)
 #influential_df <- influential_df[apply(influential_df, 1, any), ]
 #nrow(influential_df)
+influential_df <- df_encoded[influential_indices, ]
+influential_df
 ```
 
 ```{r}
@@ -513,6 +551,7 @@ all_bad_indices <- unique(c(outlier_indices, leverage_indices, influential_indic
 length(all_bad_indices)
 ```
 
+## Finalization 
 ```{r}
 # Revised model without the bad points
 model_revised <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + OCC_FATHER + I(MAT_S11*BIO_S11), data = df_encoded[-all_bad_indices, ])
@@ -520,6 +559,8 @@ summary(model_revised)
 anova(model_revised)
 plot_diagnostics(model_revised)
 deviance(model_revised)
+y_pred <- fitted(model_revised)
+plot(y_pred, df_encoded[-all_bad_indices, ]$G_SC)
 ```
 
 
