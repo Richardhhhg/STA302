@@ -462,3 +462,74 @@ df$REVENUE <- as.numeric(df_encoded$REVENUE)
 
 write_dta(df, "df_stata.dta")
 ```
+
+# Problematic Observations
+
+```{r}
+# TESTING FROM HERE ON OUT
+model5 <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + OCC_FATHER + I(MAT_S11*BIO_S11), data=df_encoded)
+summary(model5)
+anova(model5)
+plot_diagnostics(model5)
+deviance(model5)
+```
+
+```{r}
+# Outliers
+# 3 outliers
+stanres <- rstudent(model5)
+sum(stanres >= 4)
+
+outlier_indices <- which(stanres >= 4)
+# outliers <- df_encoded[outlier_indices, ]
+```
+
+```{r}
+# Leverage Points
+# 124 leverage points
+leverage_values <- hatvalues(model5)
+p <- length(coef(model5)) - 1
+n <- nrow(df_encoded) 
+leverage_threshold <- 3*p/n       # not using 2*(p+1) / n, being more strict
+
+leverage_indices <- which(leverage_values > leverage_threshold)
+# leverage_points <- df_encoded[leverage_indices, ]
+```
+
+```{r}
+# Influential Points
+# 620 across all methods
+inflm.SR <- influence.measures(model5)
+influential_indices <- which(apply(inflm.SR$is.inf, 1, any))
+
+#influential_df <- as.data.frame(inflm.SR$is.inf)
+#influential_df <- influential_df[apply(influential_df, 1, any), ]
+#nrow(influential_df)
+```
+
+```{r}
+# Combining all three
+all_bad_indices <- unique(c(outlier_indices, leverage_indices, influential_indices))
+length(all_bad_indices)
+```
+
+```{r}
+# Revised model without the bad points
+model_revised <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + OCC_FATHER + I(MAT_S11*BIO_S11), data = df_encoded[-all_bad_indices, ])
+summary(model_revised)
+anova(model_revised)
+plot_diagnostics(model_revised)
+deviance(model_revised)
+```
+
+
+
+
+
+
+
+
+
+
+
+
