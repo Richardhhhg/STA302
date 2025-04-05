@@ -4,10 +4,11 @@ ssc install asdoc,replace
 setroot
 use "df_stata.dta", clear
 
+gen SEL_IHE_1 = (SEL_IHE==1) // only for summary stats
 gen SEL_IHE_2 = (SEL_IHE==2)
 gen SEL_IHE_3 = (SEL_IHE==3)
 gen SEL_IHE_4 = (SEL_IHE==4)
-gen OCC_FATHER_0 = (OCC_FATHER==5) // not used, for baseline
+gen OCC_FATHER_0 = (OCC_FATHER==5) // only for summary stats
 gen OCC_FATHER_1 = (OCC_FATHER==2) 
 gen OCC_FATHER_2 = (OCC_FATHER==3)
 gen OCC_FATHER_3 = (OCC_FATHER==4)
@@ -28,10 +29,11 @@ label variable BIO_S11 "Biology S11"
 label variable SEL_IHE "Social Economic Level of Higher Level Institution"
 label variable OCC_FATHER "Occupation Father"
 label variable REVENUE "Revenue Level"
-
+label variable SEL_IHE_1 "Socioeconomic Level of Higher Level Education Institution 1"
 label variable SEL_IHE_2 "Socioeconomic Level of Higher Level Education Institution 2"
 label variable SEL_IHE_3 "Socioeconomic Level of Higher Level Education Institution 3"
 label variable SEL_IHE_4 "Socioeconomic Level of Higher Level Education Institution 4"
+label variable OCC_FATHER_0 "OCC_FATHER Home"
 label variable OCC_FATHER_1 "OCC_FATHER Auxiliary or Administrative"
 label variable OCC_FATHER_2 "OCC_FATHER Entrepreneur"
 label variable OCC_FATHER_3 "OCC_FATHER Executive"
@@ -47,6 +49,16 @@ label variable OCC_FATHER_10 "OCC_FATHER Technical or professional"
 label variable MAT_S11xBIO_S11 "Math S11 x Bio S11"
 
 global features MAT_S11 ENG_S11 CR_S11 CC_S11 BIO_S11 SEL_IHE_2 SEL_IHE_3 SEL_IHE_4 OCC_FATHER_1 OCC_FATHER_2  OCC_FATHER_3  OCC_FATHER_4  OCC_FATHER_5 OCC_FATHER_6 OCC_FATHER_7 OCC_FATHER_8 OCC_FATHER_9 OCC_FATHER_10 MAT_S11xBIO_S11
+
+global features_sum MAT_S11 ENG_S11 CR_S11 CC_S11 BIO_S11 SEL_IHE_1 SEL_IHE_2 SEL_IHE_3 SEL_IHE_4 OCC_FATHER_0 OCC_FATHER_1 OCC_FATHER_2  OCC_FATHER_3  OCC_FATHER_4  OCC_FATHER_5 OCC_FATHER_6 OCC_FATHER_7 OCC_FATHER_8 OCC_FATHER_9 OCC_FATHER_10 MAT_S11xBIO_S11
+
+// summary stats
+
+// eststo sum_stats: summarize $features
+
+asdoc summarize $features_sum, replace not label save(sum_stats.doc) replace
+
+// Reg tables
 
 eststo spec1: reg G_SC $features
 

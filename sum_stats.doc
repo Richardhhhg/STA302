@@ -1,0 +1,171 @@
+{\rtf1\ansi\deff0 {\fonttbl{\f0\fnil Garamond;}}
+{\info {\author .}{\company .}{\title .}}
+\deflang1033\plain\fs20
+{\footer\pard\qc\plain\f0\fs20\chpgn\par}
+{
+{
+{\b\qc\line Descriptive Statistics }{\par}
+\trowd\trgaph108\trleft-108\clbrdrt\brdrw10\brdrs \clbrdrb\brdrw25\brdrs\cellx3000\clbrdrt\brdrw10\brdrs \clbrdrb\brdrw25\brdrs\cellx3800\clbrdrt\brdrw10\brdrs \clbrdrb\brdrw25\brdrs\cellx5200\clbrdrt\brdrw10\brdrs \clbrdrb\brdrw25\brdrs\cellx6600\clbrdrt\brdrw10\brdrs \clbrdrb\brdrw25\brdrs\cellx8000\clbrdrt\brdrw10\brdrs \clbrdrb\brdrw25\brdrs\cellx9400
+\ql { {Variable}}\cell
+\qr { {Obs}}\cell
+\qr { {Mean}}\cell
+\qr { {Std. Dev.}}\cell
+\qr { {Min}}\cell
+\qr { {Max}}\cell
+\row
+\trowd\trgaph108\trleft-108\cellx3000\cellx3800\cellx5200\cellx6600\cellx8000\cellx9400
+\ql { {MATH S11}}\cell
+\qr {{11207}}\cell
+\qr {{64.275}}\cell
+\qr {{11.867}}\cell
+\qr {{26}}\cell
+\qr {{100}}\cell
+\row
+\ql { {English S11}}\cell
+\qr {{11207}}\cell
+\qr {{61.393}}\cell
+\qr {{14.121}}\cell
+\qr {{26}}\cell
+\qr {{100}}\cell
+\row
+\ql { {Critical Reading S11}}\cell
+\qr {{11207}}\cell
+\qr {{60.796}}\cell
+\qr {{10.068}}\cell
+\qr {{26}}\cell
+\qr {{100}}\cell
+\row
+\ql { {Citizen Competencies S11}}\cell
+\qr {{11207}}\cell
+\qr {{60.756}}\cell
+\qr {{10.179}}\cell
+\qr {{26}}\cell
+\qr {{100}}\cell
+\row
+\ql { {Biology S11}}\cell
+\qr {{11207}}\cell
+\qr {{63.867}}\cell
+\qr {{11.122}}\cell
+\qr {{20}}\cell
+\qr {{100}}\cell
+\row
+\ql { {Socioeconomic Level of Higher Le}}\cell
+\qr {{11207}}\cell
+\qr {{.097}}\cell
+\qr {{.296}}\cell
+\qr {{0}}\cell
+\qr {{1}}\cell
+\row
+\ql { {Socioeconomic Level of Higher Le}}\cell
+\qr {{11207}}\cell
+\qr {{.63}}\cell
+\qr {{.483}}\cell
+\qr {{0}}\cell
+\qr {{1}}\cell
+\row
+\ql { {Socioeconomic Level of Higher Le}}\cell
+\qr {{11207}}\cell
+\qr {{.066}}\cell
+\qr {{.248}}\cell
+\qr {{0}}\cell
+\qr {{1}}\cell
+\row
+\ql { {Socioeconomic Level of Higher Le}}\cell
+\qr {{11207}}\cell
+\qr {{.207}}\cell
+\qr {{.405}}\cell
+\qr {{0}}\cell
+\qr {{1}}\cell
+\row
+\ql { {OCC FATHER Home}}\cell
+\qr {{11207}}\cell
+\qr {{.007}}\cell
+\qr {{.082}}\cell
+\qr {{0}}\cell
+\qr {{1}}\cell
+\row
+\ql { {OCC FATHER Auxiliary or Administ}}\cell
+\qr {{11207}}\cell
+\qr {{.033}}\cell
+\qr {{.179}}\cell
+\qr {{0}}\cell
+\qr {{1}}\cell
+\row
+\ql { {OCC FATHER Entrepreneur}}\cell
+\qr {{11207}}\cell
+\qr {{.037}}\cell
+\qr {{.19}}\cell
+\qr {{0}}\cell
+\qr {{1}}\cell
+\row
+\ql { {OCC FATHER Executive}}\cell
+\qr {{11207}}\cell
+\qr {{.089}}\cell
+\qr {{.285}}\cell
+\qr {{0}}\cell
+\qr {{1}}\cell
+\row
+\ql { {OCC FATHER Independent}}\cell
+\qr {{11207}}\cell
+\qr {{.259}}\cell
+\qr {{.438}}\cell
+\qr {{0}}\cell
+\qr {{1}}\cell
+\row
+\ql { {OCC FATHER Independent professio}}\cell
+\qr {{11207}}\cell
+\qr {{.078}}\cell
+\qr {{.268}}\cell
+\qr {{0}}\cell
+\qr {{1}}\cell
+\row
+\ql { {OCC FATHER Operator}}\cell
+\qr {{11207}}\cell
+\qr {{.136}}\cell
+\qr {{.343}}\cell
+\qr {{0}}\cell
+\qr {{1}}\cell
+\row
+\ql { {OCC FATHER Other occupation}}\cell
+\qr {{11207}}\cell
+\qr {{.097}}\cell
+\qr {{.295}}\cell
+\qr {{0}}\cell
+\qr {{1}}\cell
+\row
+\ql { {OCC FATHER Retired}}\cell
+\qr {{11207}}\cell
+\qr {{.046}}\cell
+\qr {{.21}}\cell
+\qr {{0}}\cell
+\qr {{1}}\cell
+\row
+\ql { {OCC FATHER Small entrepreneur}}\cell
+\qr {{11207}}\cell
+\qr {{.06}}\cell
+\qr {{.237}}\cell
+\qr {{0}}\cell
+\qr {{1}}\cell
+\row
+\ql { {OCC FATHER Technical or professi}}\cell
+\qr {{11207}}\cell
+\qr {{.158}}\cell
+\qr {{.364}}\cell
+\qr {{0}}\cell
+\qr {{1}}\cell
+\row
+\ql { {Math S11 x Bio S11}}\cell
+\qr {{11207}}\cell
+\qr {{4205.678}}\cell
+\qr {{1422.118}}\cell
+\qr {{800}}\cell
+\qr {{10000}}\cell
+\row
+}
+{\trowd\trgaph108\trleft-108
+\clbrdrt\brdrw15\brdrs\cellx9400{}\cell
+\row}
+
+
+\writepositionforappend
+}}
