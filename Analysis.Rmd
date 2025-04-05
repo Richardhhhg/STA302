@@ -9,81 +9,77 @@ library(ggplot2)
 library(tidyr)
 library(corrplot)
 library(gridExtra)
+library(car)
 ```
 
 
-## Data Preprocessing
+# Data Cleaning and Preprocessing
 ```{r}
 df <- read.csv("data/data.csv")
 head(df)
 ```
 
-
+## Basic Cleaning of the Data
 ```{r}
+# Adding AVG_S11
 df <- df %>% 
   mutate("AVG_S11" = (MAT_S11 + CR_S11 + CC_S11 + BIO_S11 + ENG_S11) / 5)
 
+# Making continuous columns into factors
 continuous_cols <- c("MAT_S11", "CR_S11", "CC_S11", "BIO_S11", "ENG_S11", "G_SC", "AVG_S11",
                      "QR_PRO", "CR_PRO", "CC_PRO", "ENG_PRO", "WC_PRO", "FEP_PRO", "G_SC")
 
 df <- df%>%
   mutate(across(!all_of(continuous_cols), as.factor))
 
+# Checking missing observations
 print("Missing Observations in Each Column")
 colSums(is.na(df))
-```
 
-```{r}
 # removing identifies and variables derived from others
 df <- df %>% select(-c(...10, X, COD_S11, Cod_SPro, QUARTILE, X2ND_DECILE, PERCENTILE))
 ```
 
+## Investigating Variables
 ```{r}
+# Separating Numeric and Categorical
 df_numeric <- df %>% select(all_of(continuous_cols))
 df_categorical <- df %>% select(-c(continuous_cols))
-```
 
-```{r}
+# Checking summary
 summary(df_numeric)
+summary(df_categorical) # frequency of all values
 ```
 
+## Cleaning and Processing: Categorical Data
 ```{r}
-# frequency of all values
-summary(df_categorical)
-```
-
-```{r}
-# unique values for each category
+# Making each value in each category unique 
 lapply(df_categorical, function(x) head(unique(x), 15))
-```
 
-```{r}
-# number of distinct observations in each column for categorical
+# Getting number of levels for each categorical variable
 df_categorical %>% summarise_all(~ n_distinct(.))
-```
 
-```{r}
-# missing values were encoded as 0's
+# Getting number of missing values (encoded as 0's)
 df_categorical %>%
   summarise_all(~ sum(. == 0))
 ```
 
 ```{r}
-# since not too many missing values, can just drop them
+# since not too many missing values, we can just drop them
 df <- df %>%
   filter(EDU_FATHER != 0, EDU_MOTHER != 0, OCC_FATHER != 0, OCC_MOTHER != 0, 
          STRATUM != 0, SISBEN != 0, REVENUE != 0, JOB != 0)
-```
 
-```{r}
-# selecting again but with the cleaned data
+# selecting again for future but with the cleaned data
 df_numeric <- df %>% select(all_of(continuous_cols))
 df_categorical <- df %>% select(-c(continuous_cols))
 ```
 
-## Visualizations of Numerical Variables
+# Visualizations
+
+## Numerical Variables: Visualizations
 ```{r}
-# distributions of each variable
+# Plots to show distributions of each variable
 plots <- lapply(names(df_numeric), function(feature) {
   ggplot(df_numeric, aes_string(x = feature)) + geom_histogram(bins = 30) + labs(title = paste("Distribution of ", feature)) +
     theme_minimal() + theme(plot.title = element_text(size = 8)) + theme(axis.title.x = element_text(size=8))
@@ -92,12 +88,12 @@ plots <- lapply(names(df_numeric), function(feature) {
 grid.arrange(grobs = plots, ncol = 4)
 ```
 
-## Categorical Features Transformations and Visualizations
+## Categorical Features: Transformations
 ```{r}
 # Label Encoding Categorical Variables as numbers
-
 # For ordinal Categories (EDU_FATHER, EDU_MOTHER, PEOPLE_HOUSE, REVENUE, STRATUM, SISBEN)
 # SEL and SEL_IHE are already encoded as ordinal
+
 ordinal_features <- list(
   EDU_FATHER = c("Not sure", "Ninguno", "Incomplete primary", "Complete primary", 
                  "Incomplete Secundary", "Complete Secundary", 
@@ -122,7 +118,6 @@ df_cat_encoded[names(ordinal_features)] <- lapply(names(ordinal_features), funct
   df_cat_encoded[[feature]] <- as.factor(as.integer(factor(df_categorical[[feature]], levels = ordinal_features[[feature]], ordered = TRUE)))
 })
 ```
-
 
 ```{r}
 # special ordinal encoding for Revenue and people_house since can tell 
@@ -174,6 +169,7 @@ df_cat_encoded[remaining_features] <- lapply(remaining_features, function(featur
 head(df_cat_encoded)
 ```
 
+## Categorical Variables: Visualizations
 ```{r}
 # visualizing categorical features with less than 12 unique observations per category
 categorical_features <- names(df_cat_encoded)
@@ -209,10 +205,11 @@ for (feature in names(df_cat_gt_12)) {
 
 # grid.arrange(grobs = plots, ncol = 4)
 ```
+
+## Fully Cleaned and Processed Dataset
 ```{r}
 df_encoded <- cbind(df_cat_encoded, df_numeric)
 ```
-
 
 # Exploratory Data Analysis
 ## Numerical Features Only
@@ -232,8 +229,6 @@ plot(df_numeric_filtered)
 
 ```{r}
 # Correlation matrix heatmap
-library(corrplot)
-
 corr_matrix <- cor(df_numeric_filtered)
 corrplot(corr_matrix, method = "color", tl.srt = 45, addCoef.col = "white", number.cex = 0.8)
 ```
@@ -256,13 +251,16 @@ for (cat_feature in names(df_cat_lt_12)) {
 }
 ```
 
-# Initial Model
+# Creating Models
 ```{r}
 # TODO: CLEAN UP ALL CODE AFTER THIS
+
+# Dropping a few columns
+
 # AVG_S11 dropped to prevent perfect multicolinearity
 # PRO tests dropped since G_SC calculated from PRO tests
 # Other indicators such as decile and percentile dropped as not informative
-# Any categorical variable with 20+ category dropped cuz yeah
+# Any categorical variable with 20+ category dropped because unusable
 features <- c(names(df_numeric), names(df_cat_encoded))
 features <- features[!features %in% c(
   "QR_PRO", "CR_PRO", "CC_PRO", "ENG_PRO", "WC_PRO", "FEP_PRO",
@@ -272,59 +270,19 @@ features <- features[!features %in% c(
   )]
 ```
 
-```{r}
-# baseline model
-formula <- as.formula(paste("G_SC ~", paste(features, collapse = " + ")))
-model0 <- lm(as.formula(formula), data = df_encoded)
+## Helper Functions for Creating and Assessing Models
 
-summary(model0)
-```
-
-
-```{r}
-# assessing multicolinearity
-library(car)
-
-vif(model0)
-```
-
-
-```{r}
-# model diagnostics function
-plot_diagnostics <- function(model, data = df_encoded) {
- res <- residuals(model)
-  y_pred <- fitted(model)
-  plot(y_pred, res, abline(h = 0, lty = 2, col = "red"))
-  
-  std_residual <- rstandard(model)
-  hist(std_residual, breaks = 50, xlab="Standardized Residual", main="Histogram of Standardized Residuals")
-  
-  qqnorm(res)
-  
-  y_pred <- fitted(model)
-  plot(y_pred, data$G_SC)
-
-}
-```
-
-```{r}
-# diagnostics for baseline model
-plot_diagnostics(model0)
-```
-
-# Feature Selection
+### Feature Selection
 ```{r}
 # feature_selection
-feature_selection <- function(model, features_list, threshold, data = df_encoded) {
+feature_selection <- function(model, features_list, threshold, excluded = c(), data = df_encoded) {
   
-  features_not_in_model <- features_list[features_list != "SEL_IHE"]
-  # print(features_not_in_model)
+  features_not_in_model <- setdiff(features_list, excluded)
   rss_old <- deviance(model)
-  rss_reduction_threshold <- threshold # arbitrary value, previously was 20000
+  rss_reduction_threshold <- threshold 
   rss_reduction <- Inf
   model <- model
   while (rss_reduction >= rss_reduction_threshold) {
-    #i made this size of features list so we can index instead of appending 
     rss_values <- numeric(length(features_not_in_model))
     for (i in 1:length(features_not_in_model)) {
       new_formula <- as.formula(paste(Reduce(paste, deparse(formula(model))), " + ", features_not_in_model[i]))
@@ -332,7 +290,6 @@ feature_selection <- function(model, features_list, threshold, data = df_encoded
       rss_new <- deviance(model_temp)
       rss_reduction_temp <- rss_old - rss_new
       rss_values[i] <- rss_reduction_temp  
-      # made this index instead of append, also ensures index of rss_values n features_not_in_model match
     }
     max_rss_ind <- which.max(rss_values)
     new_formula <- as.formula(paste(Reduce(paste, deparse(formula(model))), " + ", features_not_in_model[max_rss_ind]))
@@ -366,24 +323,27 @@ feature_selection_first <- function(model, feature_list, df = df_encoded) {
 }
 ```
 
-
+### Plot Diagnostics
 ```{r}
-model1 <- lm("G_SC ~ SEL_IHE", data = df_encoded)  # changed this to sel_ihe
+# model diagnostics function to create residual plots
+plot_diagnostics <- function(model, data = df_encoded) {
+ res <- residuals(model)
+  y_pred <- fitted(model)
+  plot(y_pred, res, abline(h = 0, lty = 2, col = "red"))
+  
+  std_residual <- rstandard(model)
+  hist(std_residual, breaks = 50, xlab="Standardized Residual", main="Histogram of Standardized Residuals")
+  
+  qqnorm(res)
+  
+  y_pred <- fitted(model)
+  plot(y_pred, data$G_SC)
 
-model1 <- feature_selection(model1, features, 4000)
+}
 ```
 
+### Adding Interaction Terms
 ```{r}
-summary(model1)
-anova(model1)
-vif(model1)
-deviance(model1)
-plot_diagnostics(model1)
-```
-
-# Transformations and Interactions
-```{r}
-# adding interaction terms
 interactions <- c()
 for (i in 1:(length(features)-1)) {
   for (j in (i+1):length(features)) {
@@ -392,34 +352,10 @@ for (i in 1:(length(features)-1)) {
   }
 }
 
-```
-
-```{r}
 features_with_int <- c(features, interactions)
-features_with_int
 ```
 
-
-```{r}
-# model with just interactions
-model2 <- lm("G_SC ~ SEL_IHE", data = df_encoded)
-model2 <- feature_selection(model2, features_with_int, 80000)
-
-summary(model2)
-anova(model2)
-plot_diagnostics(model2)
-```
-
-```{r}
-# taking original model and adding interactions
-model3 <- feature_selection(model1, features_with_int, 30000)
-
-summary(model3)
-anova(model3)
-plot_diagnostics(model3)
-```
-
-
+## Model Prev: Preliminary Model 
 ```{r}
 # preliminary model for comparison
 model_prev <- lm(G_SC~ AVG_S11 + SEL+ SEL_IHE + GENDER_MALE + SCHOOL_NAT, data=df_encoded)
@@ -428,24 +364,79 @@ anova(model_prev)
 plot_diagnostics(model_prev)
 ```
 
+## Model 0: Baseline Model
 ```{r}
-# best model without interactions
-model3 <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + OCC_FATHER, data=df_encoded)
+# baseline model with all features
+formula <- as.formula(paste("G_SC ~", paste(features, collapse = " + ")))
+model0 <- lm(as.formula(formula), data = df_encoded)
+
+summary(model0)
+vif(model0)                # assessing multicolinearity
+plot_diagnostics(model0)   # diagnostics for baseline model
+```
+
+## Model 1: Naive Feature Selection
+
+Trying feature selection with only raw variables, no transformations,
+no interactions.
+
+```{r}
+# SEL_IHE was selected by feature_selection_first
+model1 <- lm("G_SC ~ SEL_IHE", data = df_encoded)  
+model1 <- feature_selection(model1, features, 4000, c("SEL_IHE"))
+
+summary(model1)
+anova(model1)
+vif(model1)
+deviance(model1)
+plot_diagnostics(model1)
+```
+
+## Model 2: Just Interactions
+
+Trying feature selection with only interaction terms.
+```{r}
+model2 <- lm("G_SC ~ SEL_IHE", data = df_encoded)
+model2 <- feature_selection(model2, features_with_int, 80000, c("SEL_IHE"))
+
+summary(model2)
+anova(model2)
+plot_diagnostics(model2)
+```
+
+## Model 3: Adding Interactions to Model 1
+```{r}
+# taking original model and adding interactions
+model1_preds <- attr(terms(model1), "term.labels")
+model3 <- feature_selection(model1, features_with_int, 30000, excluded=model1_preds)
+
 summary(model3)
 anova(model3)
 plot_diagnostics(model3)
-deviance(model3)
-vif(model3)
 ```
 
+## Final Model Contenders
 ```{r}
-# best model with interactions
-model4 <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + REVENUE + OCC_FATHER + I(MAT_S11*BIO_S11), data=df_encoded)
+# best model without interactions
+model4 <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + OCC_FATHER, data=df_encoded)
 summary(model4)
 anova(model4)
 plot_diagnostics(model4)
 deviance(model4)
+vif(model4)
 ```
+
+```{r}
+# best model with interactions
+model5 <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + OCC_FATHER + I(MAT_S11*BIO_S11), data=df_encoded)
+summary(model5)
+anova(model5)
+plot_diagnostics(model5)
+deviance(model5)
+vif(model5)
+```
+
+We chose to go ahead with model 5
 
 ```{r}
 # transfering data into .dta format for stata regression tables
@@ -458,23 +449,11 @@ write_dta(df, "df_stata.dta")
 
 # Problematic Observations
 
-```{r}
-# TESTING FROM HERE ON OUT
-model5 <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + OCC_FATHER + I(MAT_S11*BIO_S11), data=df_encoded)
-summary(model5)
-anova(model5)
-plot_diagnostics(model5)
-deviance(model5)
-```
-
 ## Outliers
 ```{r}
-# Outliers
 # 3 outliers
 stanres <- rstudent(model5)
-
 sum(stanres >= 4)
-
 outlier_indices <- which(stanres >= 4)
 
 df_outlier <- df[outlier_indices, ]
@@ -489,6 +468,8 @@ All individuals who are outliers did really poorly on S11 (avg of ~40%) but did 
 # Leverage Points
 # 124 leverage points
 # TODO: 114 leverage points when using p+1 instead of just p
+# ^not todo ur not allowed to use p+1 here. the available options 
+# are 2(p+1)/n or 3p/n there's no in-between lmao
 leverage_values <- hatvalues(model5)
 p <- length(coef(model5)) - 1
 n <- nrow(df_encoded) 
@@ -496,39 +477,10 @@ leverage_threshold <- 3*(p+1)/n       # not using 2*(p+1) / n, being more strict
 
 leverage_indices <- which(leverage_values > leverage_threshold)
 df_leverage <- df_encoded[leverage_indices, ]
-# nrow(leverage_points)
 head(df_leverage)
 ```
-```{r}
 
-# Visualizations of Numeric Data for Leverage Points
-plots <- lapply(names(df_numeric), function(feature) {
-  ggplot(df_leverage, aes_string(x = feature)) + geom_histogram(bins = 30) + labs(title = paste("Distribution of ", feature)) +
-    theme_minimal() + theme(plot.title = element_text(size = 8)) + theme(axis.title.x = element_text(size=8))
-})
-
-grid.arrange(grobs = plots, ncol = 4)
-
-```
-```{r}
-# visualizations for categorical features of leverage points data
-plots <- lapply(names(df_cat_lt_12)[0:16], function(feature) {
-  ggplot(df_leverage, aes_string(x = feature)) + geom_histogram(stat="count") + labs(title = paste("Distribution of ", feature)) +
-    theme_minimal() + theme(plot.title = element_text(size = 8)) + theme(axis.title.x = element_text(size=8))
-})
-
-grid.arrange(grobs = plots, ncol = 4)
-
-plots <- lapply(names(df_cat_lt_12)[16:length(names(df_cat_lt_12))], function(feature) {
-  ggplot(df_leverage, aes_string(x = feature)) + geom_histogram(stat="count") + labs(title = paste("Distribution of ", feature)) +
-    theme_minimal() + theme(plot.title = element_text(size = 8)) + theme(axis.title.x = element_text(size=8))
-})
-
-grid.arrange(grobs = plots, ncol = 4)
-```
-
-
-## Influential Points
+### Visualizations for further testing LPs
 ```{r}
 # Visualizations of Numeric Data for Leverage Points
 plots <- lapply(names(df_numeric), function(feature) {
@@ -538,6 +490,7 @@ plots <- lapply(names(df_numeric), function(feature) {
 
 grid.arrange(grobs = plots, ncol = 4)
 ```
+
 ```{r}
 # visualizations for categorical features of leverage points data
 plots <- lapply(names(df_cat_lt_12)[0:16], function(feature) {
@@ -571,14 +524,14 @@ influential_df <- df_encoded[influential_indices, ]
 influential_df
 ```
 
-## Finalization 
+## Checking whether to remove problematic observations
 ```{r}
 # Combining all three
 all_bad_indices <- unique(c(outlier_indices, leverage_indices, influential_indices))
 length(all_bad_indices)
 ```
 
-## Finalization 
+## Model Revised: Removing all problematic observations
 ```{r}
 # Revised model without the bad points
 model_revised <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + OCC_FATHER + I(MAT_S11*BIO_S11), data = df_encoded[-all_bad_indices, ])
@@ -588,25 +541,63 @@ plot_diagnostics(model_revised, data = df_encoded[-all_bad_indices, ])
 deviance(model_revised)
 ```
 
+### Bro idk what ur really doing here figure it out
 ```{r}
 model_temp <- lm(G_SC ~ SEL_IHE, data = df_encoded[-all_bad_indices, ])
-model_epic <- feature_selection(model_temp, features, 4000, data = df_encoded[-all_bad_indices, ])
-
-summary(model_epic)
-anova(model_epic)
-plot_diagnostics(model_epic, data = df_encoded[-all_bad_indices, ])
-```
-```{r}
-model_temp <- lm(G_SC ~ SEL_IHE, data = df_encoded[-all_bad_indices, ])
-model_epic <- feature_selection(model_temp, features, 4000, data = df_encoded[-all_bad_indices, ])
+model_epic <- feature_selection(model_temp, features, 4000, c("SEL_IHE"), data = df_encoded[-all_bad_indices, ])
 
 summary(model_epic)
 anova(model_epic)
 plot_diagnostics(model_epic, data = df_encoded[-all_bad_indices, ])
 ```
 
+```{r}
+model_temp <- lm(G_SC ~ SEL_IHE, data = df_encoded[-all_bad_indices, ])
+model_epic <- feature_selection(model_temp, features, 4000, c("SEL_IHE"), data = df_encoded[-all_bad_indices, ])
 
+summary(model_epic)
+anova(model_epic)
+plot_diagnostics(model_epic, data = df_encoded[-all_bad_indices, ])
+```
 
+## Model Out: Removing only Outliers
+```{r}
+model_out <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + OCC_FATHER + I(MAT_S11*BIO_S11), data=df_encoded[-outlier_indices, ])
+summary(model_out)
+anova(model_out)
+plot_diagnostics(model_out, data=df_encoded[-outlier_indices, ])
+deviance(model_out)
+vif(model_out)
+```
+
+## Model Inf: Removing only Influential Points
+```{r}
+model_inf <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + OCC_FATHER + I(MAT_S11*BIO_S11), data=df_encoded[-influential_indices, ])
+summary(model_inf)
+anova(model_inf)
+plot_diagnostics(model_inf, data=df_encoded[-influential_indices, ])
+deviance(model_inf)
+vif(model_inf)
+```
+
+Although removing influential points improves adjusted R^2 by a significant
+amount, we will not be removing them. This is because they make up a large
+percentage of the dataset, (5.5%) and so they represent a valid subset of the 
+true population. Almost all leverage points are influential points, so keeping 
+influential points is the same as keeping leverage points.
+
+Outliers, however, represent special cases and consist of only 3 observations.
+Therefore, we will be removing them.
+
+The final model then is model_out. Reiterating this here as a conclusion.
+```{r}
+model_final <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + OCC_FATHER + I(MAT_S11*BIO_S11), data=df_encoded[-outlier_indices, ])
+summary(model_final)
+anova(model_final)
+plot_diagnostics(model_final, data=df_encoded[-outlier_indices, ])
+deviance(model_final)
+vif(model_final)
+```
 
 
 
