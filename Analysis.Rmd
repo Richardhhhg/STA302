@@ -19,7 +19,6 @@ df <- read.csv("data/data.csv")
 head(df)
 ```
 
-## Basic Cleaning of the Data
 ```{r}
 # Adding AVG_S11
 df <- df %>% 
@@ -36,17 +35,16 @@ df <- df%>%
 print("Missing Observations in Each Column")
 colSums(is.na(df))
 
-# removing identifies and variables derived from others
+# removing identifies and other uninformative variables relating
 df <- df %>% select(-c(...10, X, COD_S11, Cod_SPro, QUARTILE, X2ND_DECILE, PERCENTILE))
 ```
 
-## Investigating Variables
 ```{r}
 # Separating Numeric and Categorical
 df_numeric <- df %>% select(all_of(continuous_cols))
 df_categorical <- df %>% select(-c(continuous_cols))
 
-# Checking summary
+# Summary Statistics
 summary(df_numeric)
 summary(df_categorical) # frequency of all values
 ```
@@ -75,20 +73,7 @@ df_numeric <- df %>% select(all_of(continuous_cols))
 df_categorical <- df %>% select(-c(continuous_cols))
 ```
 
-# Visualizations
-
-## Numerical Variables: Visualizations
-```{r}
-# Plots to show distributions of each variable
-plots <- lapply(names(df_numeric), function(feature) {
-  ggplot(df_numeric, aes_string(x = feature)) + geom_histogram(bins = 30) + labs(title = paste("Distribution of ", feature)) +
-    theme_minimal() + theme(plot.title = element_text(size = 8)) + theme(axis.title.x = element_text(size=8))
-})
-
-grid.arrange(grobs = plots, ncol = 4)
-```
-
-## Categorical Features: Transformations
+## Categorical Features: Encodings and Transformations
 ```{r}
 # Label Encoding Categorical Variables as numbers
 # For ordinal Categories (EDU_FATHER, EDU_MOTHER, PEOPLE_HOUSE, REVENUE, STRATUM, SISBEN)
@@ -127,7 +112,7 @@ df_cat_encoded <- df_cat_encoded %>%
   mutate(REVENUE = case_when(
     REVENUE == "less than 1 LMMW" ~ 0.5,
     REVENUE == "Between 1 and less than 2 LMMW" ~ 1.5,
-    REVENUE == "Between 2 and less than 3 LMMW" ~ 2.3, 
+    REVENUE == "Between 2 and less than 3 LMMW" ~ 2.5, 
     REVENUE == "Between 3 and less than 5 LMMW" ~ 4, 
     REVENUE == "Between 5 and less than 7 LMMW" ~ 6, 
     REVENUE == "Between 7 and less than 10 LMMW" ~ 8.5,
@@ -191,7 +176,6 @@ grid.arrange(grobs = plots, ncol = 4)
 ```
 
 ```{r}
-# TODO: FIX ENCODINGS FOR THIS GARBAGE
 # Plots for All Remaining Categorical Features
 df_cat_gt_12 <- df_cat_encoded[sapply(df_cat_encoded[categorical_features], function(x) length(unique(x)) >= 12)]
 
@@ -206,16 +190,19 @@ for (feature in names(df_cat_gt_12)) {
 # grid.arrange(grobs = plots, ncol = 4)
 ```
 
-## Fully Cleaned and Processed Dataset
+## Numerical Variables: Visualizations
 ```{r}
-df_encoded <- cbind(df_cat_encoded, df_numeric)
+# Plots to show distributions of each variable
+plots <- lapply(names(df_numeric), function(feature) {
+  ggplot(df_numeric, aes_string(x = feature)) + geom_histogram(bins = 30) + labs(title = paste("Distribution of ", feature)) +
+    theme_minimal() + theme(plot.title = element_text(size = 8)) + theme(axis.title.x = element_text(size=8))
+})
+
+grid.arrange(grobs = plots, ncol = 4)
 ```
 
-# Exploratory Data Analysis
-## Numerical Features Only
-
 ```{r}
-# dropping features that are from same test period as outcome
+# dropping features that are from same test period as G_SC to improve clarity in visualization
 numeric_to_drop <- c("QR_PRO", "CR_PRO", "CC_PRO", "ENG_PRO", "WC_PRO", "FEP_PRO")
 df_numeric_filtered <- df_numeric %>% select(-all_of(numeric_to_drop))
 ```
@@ -233,7 +220,7 @@ corr_matrix <- cor(df_numeric_filtered)
 corrplot(corr_matrix, method = "color", tl.srt = 45, addCoef.col = "white", number.cex = 0.8)
 ```
 
-## Numerical and Categorical
+## Numerical and Categorical Visualizations
 ```{r}
 # Boxplots for each numerical and categorical feature with less than 13 unique values
 for (cat_feature in names(df_cat_lt_12)) {
@@ -251,30 +238,36 @@ for (cat_feature in names(df_cat_lt_12)) {
 }
 ```
 
-# Creating Models
+## #Fully Cleaned and Processed Dataset
 ```{r}
-# TODO: CLEAN UP ALL CODE AFTER THIS
+df_encoded <- cbind(df_cat_encoded, df_numeric)
+```
 
-# Dropping a few columns
+### Removing Unnecessary Features
+AVG_S11 dropped as it is purely meant to get a sense of the average scores on the Saber 11 tests. By including this in the model, we may introduce perfect multicolinearity, breaking the assumptions of linear regression. Using AVG_S11 instead of the individual S11 tests will also reduce reduce the amount of information contained within the model, reducing predictive power and interpretability.
 
-# AVG_S11 dropped to prevent perfect multicolinearity
-# PRO tests dropped since G_SC calculated from PRO tests
-# Other indicators such as decile and percentile dropped as not informative
-# Any categorical variable with 20+ category dropped because unusable
+The scores on the PRO tests were dropped as our outcome G_SC is derived from such scores.
+
+Cateogrical Variables with over 20+ categories were dropped due to large imbalances in the categories and lack of information provided by the categories. This only includes the variables of "University", "School Name", and "Academic Program"
+
+```{r}
 features <- c(names(df_numeric), names(df_cat_encoded))
 features <- features[!features %in% c(
   "QR_PRO", "CR_PRO", "CC_PRO", "ENG_PRO", "WC_PRO", "FEP_PRO",
-  "PERCENTILE", "G_SC", "SCHOOL_NAME", "UNIVERSITY", 
-  "ACADEMIC_PROGRAM", "X2ND_DECILE", "QUARTILE",
-  "AVG_S11"
+  "G_SC", "SCHOOL_NAME", "UNIVERSITY", "ACADEMIC_PROGRAM", "AVG_S11"
   )]
 ```
 
-## Helper Functions for Creating and Assessing Models
+# Model Building and Selection
+
+## Function for Model Selection
 
 ### Feature Selection
+
+As our dataset contains a large set of predictors and we also consider all possible interaction terms, using built in functions for feature selection creates excess strain on computing and often does not work properly. To compensate for this, we chose to make our own algorithm for forward selection that seeks to minimize RSS. But we customize our function with a threshold to prevent overfitting and reduce computing time.
+
 ```{r}
-# feature_selection
+# feature selection function
 feature_selection <- function(model, features_list, threshold, excluded = c(), data = df_encoded) {
   
   features_not_in_model <- setdiff(features_list, excluded)
@@ -323,7 +316,6 @@ feature_selection_first <- function(model, feature_list, df = df_encoded) {
 }
 ```
 
-### Plot Diagnostics
 ```{r}
 # model diagnostics function to create residual plots
 plot_diagnostics <- function(model, data = df_encoded) {
@@ -342,8 +334,8 @@ plot_diagnostics <- function(model, data = df_encoded) {
 }
 ```
 
-### Adding Interaction Terms
 ```{r}
+# creating list of all features with interaction terms
 interactions <- c()
 for (i in 1:(length(features)-1)) {
   for (j in (i+1):length(features)) {
@@ -354,6 +346,8 @@ for (i in 1:(length(features)-1)) {
 
 features_with_int <- c(features, interactions)
 ```
+
+# Model Building and Model Selection
 
 ## Model Prev: Preliminary Model 
 ```{r}
@@ -394,7 +388,7 @@ plot_diagnostics(model1)
 
 ## Model 2: Just Interactions
 
-Trying feature selection with only interaction terms.
+Trying feature selection with list of all features including interactions.
 ```{r}
 model2 <- lm("G_SC ~ SEL_IHE", data = df_encoded)
 model2 <- feature_selection(model2, features_with_int, 80000, c("SEL_IHE"))
@@ -436,7 +430,7 @@ deviance(model5)
 vif(model5)
 ```
 
-We chose to go ahead with model 5
+We chose to go ahead with model 5 as the additional interaction term provides a slightly higher adjusted R^2, slightly reduced RSS and increased significance to our research question.
 
 ```{r}
 # transfering data into .dta format for stata regression tables
@@ -447,7 +441,7 @@ df$REVENUE <- as.numeric(df_encoded$REVENUE)
 write_dta(df, "df_stata.dta")
 ```
 
-# Problematic Observations
+# Investigating Problematic Observations
 
 ## Outliers
 ```{r}
@@ -459,17 +453,14 @@ outlier_indices <- which(stanres >= 4)
 df_outlier <- df[outlier_indices, ]
 df_outlier
 ```
-All individuals who are outliers did really poorly on S11 (avg of ~40%) but did moderately better on G_SC (avg of ~60%)
+All individuals who are outliers did really poorly on S11 (avg of ~40%) but did significantly better on G_SC (avg of ~60%).
 - Score for the PRO exams on average were just a lot higher than on S11 exams. Although can't see from the summary of the numeric data, from visualizations, the pro tests are a lot more left skewed. But should still be noted that G_SC and FEP_PRO are fairly normally distributed.
-- Could be like due to difference in times resulting in the student having more time to reevaluate decisions and study for pro tests?
+- Mostly likely caused by unknown factors not representative of the population as a whole.
 
 ## Leverage Points
 ```{r}
 # Leverage Points
-# 124 leverage points
-# TODO: 114 leverage points when using p+1 instead of just p
-# ^not todo ur not allowed to use p+1 here. the available options 
-# are 2(p+1)/n or 3p/n there's no in-between lmao
+# 114 leverage points
 leverage_values <- hatvalues(model5)
 p <- length(coef(model5)) - 1
 n <- nrow(df_encoded) 
@@ -509,6 +500,7 @@ grid.arrange(grobs = plots, ncol = 4)
 ```
 When comparing the summary statistics of the individuals who are classified as leverage points for out regression model, we find that there is quite a significant difference in their Math and Biology S11 scores and the average. In this subset of our sample, the average score on Math and Biology for the S11 exams was 73.09 and 72.04 respectively. In the sample as a whole, the average Math and biology scores for the S11 exams were 64 and 63.87 respectively.
 This could potentially mean that these individuals were driving up the coefficient on Math and Biology S11 in our regression, explaining why they were significantly higher the other S11 test coefficients despite having similar distributions and correlations with the outcome variable G_SC.
+The individuals represented by the leverage points largely had fathers that were stay at home (OCC_FATHER = HOME (level 4)). This is interesting as it could mean that there is a very large difference between individuals with fathers who work versus fathers who stay at home. The distribution for the occupation of the mother is also interesting as it is very bimodal with the majority of mothers either staying at home or working a technical/professional job (level 11).
 
 ## Influential Points
 ```{r}
@@ -517,9 +509,6 @@ This could potentially mean that these individuals were driving up the coefficie
 inflm.SR <- influence.measures(model5)
 influential_indices <- which(apply(inflm.SR$is.inf, 1, any))
 
-#influential_df <- as.data.frame(inflm.SR$is.inf)
-#influential_df <- influential_df[apply(influential_df, 1, any), ]
-#nrow(influential_df)
 influential_df <- df_encoded[influential_indices, ]
 influential_df
 ```
@@ -539,25 +528,6 @@ summary(model_revised)
 anova(model_revised)
 plot_diagnostics(model_revised, data = df_encoded[-all_bad_indices, ])
 deviance(model_revised)
-```
-
-### Bro idk what ur really doing here figure it out
-```{r}
-model_temp <- lm(G_SC ~ SEL_IHE, data = df_encoded[-all_bad_indices, ])
-model_epic <- feature_selection(model_temp, features, 4000, c("SEL_IHE"), data = df_encoded[-all_bad_indices, ])
-
-summary(model_epic)
-anova(model_epic)
-plot_diagnostics(model_epic, data = df_encoded[-all_bad_indices, ])
-```
-
-```{r}
-model_temp <- lm(G_SC ~ SEL_IHE, data = df_encoded[-all_bad_indices, ])
-model_epic <- feature_selection(model_temp, features, 4000, c("SEL_IHE"), data = df_encoded[-all_bad_indices, ])
-
-summary(model_epic)
-anova(model_epic)
-plot_diagnostics(model_epic, data = df_encoded[-all_bad_indices, ])
 ```
 
 ## Model Out: Removing only Outliers
@@ -581,10 +551,11 @@ vif(model_inf)
 ```
 
 Although removing influential points improves adjusted R^2 by a significant
-amount, we will not be removing them. This is because they make up a large
-percentage of the dataset, (5.5%) and so they represent a valid subset of the 
-true population. Almost all leverage points are influential points, so keeping 
-influential points is the same as keeping leverage points.
+amount and results in significantly better diagnostic plots, we will not be 
+removing them. This is because they make up a sizeable percentage of the dataset, 
+(5.5%) and so they represent a valid subset of the true population. Almost all 
+leverage points are influential points, so keeping influential points is the 
+same as keeping leverage points.
 
 Outliers, however, represent special cases and consist of only 3 observations.
 Therefore, we will be removing them.
@@ -598,11 +569,7 @@ plot_diagnostics(model_final, data=df_encoded[-outlier_indices, ])
 deviance(model_final)
 vif(model_final)
 ```
-
-
-
-
-
-
-
-
+```{r}
+# transfering data to stata for regression tables
+write_dta(df[-outlier_indices, ], "df_stata_no_outlier.dta")
+```
