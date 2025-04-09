@@ -2,7 +2,7 @@
 // ssc install estout, replace
 ssc install asdoc,replace
 setroot
-use "df_stata.dta", clear
+use "df_stata_no_outlier.dta", clear
 
 gen SEL_IHE_1 = (SEL_IHE==1) // only for summary stats
 gen SEL_IHE_2 = (SEL_IHE==2)
@@ -66,4 +66,4 @@ local notes "Regression results for G_SC on individual S11 tests, Socioeconomic 
 
 esttab spec1 using reg_table_final.html, cells(b(star fmt(3)) p(fmt(3)) ci(par fmt(3)) se(fmt(3) par(( )))) title("Regression Results Table") stats(r2_a N, labels("Adjusted R-Squared" "Observations") fmt(3 0)) addnotes("Notes:`notes'") label replace
 
-asdoc reg G_SC $features, replace not label
+asdoc reg G_SC $features, replace label
