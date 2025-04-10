@@ -153,6 +153,7 @@ df_cat_encoded[remaining_features] <- lapply(remaining_features, function(featur
 # final category encoded dataframe
 head(df_cat_encoded)
 ```
+# Exploratory Data Analysis
 
 ## Categorical Variables: Visualizations
 ```{r}
@@ -237,8 +238,94 @@ for (cat_feature in names(df_cat_lt_12)) {
   grid.arrange(grobs = plots, ncol = 4)
 }
 ```
+## Plots from Preliminary Analysis
+```{r}
+# Note: We did not reproduce the same plots in our in depth analysis due to the high computing power 
+# required and the lack of legibility associated with excessive subplots
+features_prelim <- c("AVG_S11", "GENDER_MALE", "SCHOOL_NAT", "SEL", "SEL_IHE")
+target <- "G_SC"
+df_prelim <- df_encoded %>% select(all_of(target), all_of(features_prelim))
 
-## #Fully Cleaned and Processed Dataset
+plot_matrix_self <- function(df) {
+  vars <- c("", names(df))
+  n <- length(vars)
+  
+  plot_list <- lapply(1:n, function(i) {
+    lapply(1:n, function(j) {
+      
+      # base cases
+      if (i == 1 && j == 1){  # top left is empty
+        p <- ggplot() + theme_void()
+      } else if (i == 1 | j == 1){  # name of the var
+        label_text <- ifelse(i == 1, vars[j], vars[i])
+        p <- ggplot() + 
+          geom_text(aes(x = 0.5, y = 0.5, label = label_text), size = 3) + 
+          theme_void()
+      # diagonal plots
+      } else if (i == j) {
+        p <- ggplot(df, aes_string(x = vars[i])) +
+          theme_minimal(base_size = 10) +
+          theme(
+            axis.text.x = element_blank(),
+            axis.text.y = element_blank(),  
+            axis.title.x = element_blank(), 
+            axis.title.y = element_blank(), 
+            plot.margin = margin(5, 5, 5, 5)
+          )
+        p <- p + if (is.numeric(df[[vars[i]]])) geom_histogram(bins = 30) else geom_bar()
+        
+        if (i == n){
+          p <- p + theme(axis.text.x = element_text(size = 8))
+        }
+      } else {
+        # base plot
+        p <- ggplot(df, aes_string(x = vars[j], y = vars[i])) +
+          theme_minimal(base_size = 10) +   # Use smaller font size to fit plots
+          theme(
+            # removing all labels and titles for now
+            axis.text.x = element_blank(),
+            axis.text.y = element_blank(),  
+            axis.title.x = element_blank(), 
+            axis.title.y = element_blank(), 
+            plot.margin = margin(5, 5, 5, 5)
+          )
+        
+        # Numeric vs. Numeric → Scatterplot
+        if (is.numeric(df[[vars[j]]]) && is.numeric(df[[vars[i]]])) {
+          p <- p + geom_point(alpha = 0.5)
+          
+        # Categorical vs. Categorical → Count
+        } else if (is.factor(df[[vars[j]]]) && is.factor(df[[vars[i]]])) {
+          p <- p + geom_count(show.legend = FALSE, position = position_dodge(width = 0.3))
+          
+        # Categorical vs. Numeric → Boxplot
+        } else {
+          p <- p + geom_boxplot()
+        }
+          
+        # Show x-axis tick labels only for bottom row
+        if (i == n && i != j) {
+          p <- p + theme(axis.text.x = element_text(size = 8))
+        }
+
+        # Show y-axis tick labels only for leftmost column
+        if (j == 2 && i != j) {
+          p <- p + theme(axis.text.y = element_text(size = 8))
+        }
+      }
+      
+      return(p)
+    })
+  })
+  
+  plot_list <- unlist(plot_list, recursive = FALSE)
+  grid.arrange(grobs = plot_list, ncol = n)
+}
+
+plot_matrix_self(df_prelim)
+```
+
+### Fully Cleaned and Processed Dataset
 ```{r}
 df_encoded <- cbind(df_cat_encoded, df_numeric)
 ```
@@ -352,6 +439,8 @@ features_with_int <- c(features, interactions)
 ## Model Prev: Preliminary Model 
 ```{r}
 # preliminary model for comparison
+# Note: The coefficients may be different from the coefficients stated in our paper due to us encoding Gender as GENDER_MALE
+# instead of GENDER_FEMALE as was done in the preliminary analysis part of our paper
 model_prev <- lm(G_SC~ AVG_S11 + SEL+ SEL_IHE + GENDER_MALE + SCHOOL_NAT, data=df_encoded)
 summary(model_prev)
 anova(model_prev)
@@ -382,7 +471,6 @@ model1 <- feature_selection(model1, features, 4000, c("SEL_IHE"))
 summary(model1)
 anova(model1)
 vif(model1)
-deviance(model1)
 plot_diagnostics(model1)
 ```
 
@@ -416,7 +504,6 @@ model4 <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + OC
 summary(model4)
 anova(model4)
 plot_diagnostics(model4)
-deviance(model4)
 vif(model4)
 ```
 
@@ -426,20 +513,10 @@ model5 <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE + OC
 summary(model5)
 anova(model5)
 plot_diagnostics(model5)
-deviance(model5)
 vif(model5)
 ```
 
 We chose to go ahead with model 5 as the additional interaction term provides a slightly higher adjusted R^2, slightly reduced RSS and increased significance to our research question.
-
-```{r}
-# transfering data into .dta format for stata regression tables
-library(haven)
-
-df$REVENUE <- as.numeric(df_encoded$REVENUE)
-
-write_dta(df, "df_stata.dta")
-```
 
 # Investigating Problematic Observations
 
@@ -527,7 +604,6 @@ model_revised <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_I
 summary(model_revised)
 anova(model_revised)
 plot_diagnostics(model_revised, data = df_encoded[-all_bad_indices, ])
-deviance(model_revised)
 ```
 
 ## Model Out: Removing only Outliers
@@ -536,7 +612,6 @@ model_out <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE +
 summary(model_out)
 anova(model_out)
 plot_diagnostics(model_out, data=df_encoded[-outlier_indices, ])
-deviance(model_out)
 vif(model_out)
 ```
 
@@ -546,7 +621,6 @@ model_inf <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE +
 summary(model_inf)
 anova(model_inf)
 plot_diagnostics(model_inf, data=df_encoded[-influential_indices, ])
-deviance(model_inf)
 vif(model_inf)
 ```
 
@@ -566,9 +640,9 @@ model_final <- lm(G_SC ~ MAT_S11 + ENG_S11 + CR_S11 + CC_S11 + BIO_S11 + SEL_IHE
 summary(model_final)
 anova(model_final)
 plot_diagnostics(model_final, data=df_encoded[-outlier_indices, ])
-deviance(model_final)
 vif(model_final)
 ```
+
 ```{r}
 # transfering data to stata for regression tables
 write_dta(df[-outlier_indices, ], "df_stata_no_outlier.dta")
